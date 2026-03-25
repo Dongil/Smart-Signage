@@ -1,0 +1,48 @@
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #0a0a1a;
+  border-bottom: 1px solid #333;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: #eee;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  background: #16213e;
+  color: #eee;
+  border: 1px solid #333;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  background: #1a5276;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: #0f3460;
+  border-color: #0f3460;
+}
+
+.primary:hover:not(:disabled) {
+  background: #1a5276;
+}

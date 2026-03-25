@@ -1,0 +1,75 @@
+.editor {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.empty {
+  color: #666;
+  text-align: center;
+  margin-top: 40%;
+  font-size: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.field label {
+  font-size: 13px;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field textarea {
+  background: #16213e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #eee;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #0f3460;
+}
+
+.row {
+  display: flex;
+  gap: 20px;
+}
+
+.row .field {
+  flex: 1;
+}
+
+.colorInput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.colorInput input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+}
+
+.colorInput span {
+  font-size: 14px;
+  color: #aaa;
+  font-family: monospace;
+}
