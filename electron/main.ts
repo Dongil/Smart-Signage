@@ -1,6 +1,8 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron';
+// Design Ref: §6 — Electron main with media file management + custom protocol
+import { app, BrowserWindow, screen, ipcMain, protocol } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import { selectMediaFile, copyMediaFile, getMediaAbsolutePath } from './fileManager';
 
 let editorWin: BrowserWindow | null = null;
 let signageWin: BrowserWindow | null = null;
@@ -59,9 +61,11 @@ ipcMain.on('toggle-fullscreen', () => {
   }
 });
 
-ipcMain.on('show-on-signage', (_event, slideData) => {
+ipcMain.on('show-on-signage', (_event, payload) => {
   if (signageWin) {
-    signageWin.webContents.send('render-slide', slideData);
+    signageWin.webContents.send('render-slide', payload);
+    signageWin.setFullScreen(true);
+    signageWin.focus();
   }
 });
 
@@ -91,7 +95,29 @@ ipcMain.handle('load-file', (_event, { path: filePath }: { path: string }) => {
   return null;
 });
 
-app.whenReady().then(createWindows);
+// Design Ref: §6.2 — Media file IPC handlers
+ipcMain.handle('select-media-file', async (_event, { filters }: { filters: Electron.FileFilter[] }) => {
+  return selectMediaFile(filters);
+});
+
+ipcMain.handle('copy-media-file', (_event, { sourcePath }: { sourcePath: string }) => {
+  return copyMediaFile(sourcePath);
+});
+
+ipcMain.handle('get-media-path', (_event, { fileName }: { fileName: string }) => {
+  return getMediaAbsolutePath(fileName);
+});
+
+app.whenReady().then(() => {
+  // Design Ref: §6.3 — Custom protocol for secure media loading
+  protocol.registerFileProtocol('media', (request, callback) => {
+    const fileName = decodeURIComponent(request.url.replace('media://', ''));
+    const filePath = getMediaAbsolutePath(fileName);
+    callback({ path: filePath });
+  });
+
+  createWindows();
+});
 
 app.on('window-all-closed', () => {
   app.quit();

@@ -1,5 +1,6 @@
 'use client';
 
+import '@/components/templates/registerAll';
 import { useEffect } from 'react';
 import { useSignageStore } from '@/store/useSignageStore';
 import Toolbar from '@/components/Toolbar';

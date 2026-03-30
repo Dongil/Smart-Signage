@@ -1,7 +1,20 @@
+// Design Ref: §10 — Store with slide type migration
 import { create } from 'zustand';
 import { Slide } from '@/types/slide';
 
 export type { Slide };
+
+// Plan SC: SC-1 하위 호환성 — type 필드 없는 기존 데이터 마이그레이션
+const migrateSlide = (raw: Record<string, unknown>): Slide => ({
+  id: (raw.id as string) ?? crypto.randomUUID(),
+  type: (raw.type as Slide['type']) ?? 'text',
+  title: (raw.title as string) ?? '',
+  content: (raw.content as string) ?? '',
+  backgroundColor: (raw.backgroundColor as string) ?? '#1a1a2e',
+  duration: (raw.duration as number) ?? 5,
+  mediaPath: raw.mediaPath as string | undefined,
+  mediaOptions: raw.mediaOptions as Slide['mediaOptions'] | undefined,
+});
 
 const SLIDES_PATH = '/data/slides.json';
 
@@ -51,20 +64,34 @@ export const useSignageStore = create<SignageState>((set) => ({
   setFullscreen: (value) => set({ isFullscreen: value }),
 
   saveToFile: async () => {
-    const { slides } = useSignageStore.getState();
-    await window.electronAPI?.invoke('save-file', {
-      path: SLIDES_PATH,
-      data: JSON.stringify(slides, null, 2),
-    });
+    const { slides, currentSlideIndex } = useSignageStore.getState();
+    const data = JSON.stringify(slides, null, 2);
+    if (window.electronAPI) {
+      await window.electronAPI.invoke('save-file', { path: SLIDES_PATH, data });
+      // Also push updated slides to signage window
+      window.electronAPI.send('show-on-signage', { slides, startIndex: currentSlideIndex });
+    } else {
+      localStorage.setItem('signage-slides', data);
+      // Also update signage output so the signage window picks up changes
+      localStorage.setItem('signage-output', JSON.stringify({ slides, startIndex: currentSlideIndex }));
+    }
   },
 
   loadFromFile: async () => {
-    const result = await window.electronAPI?.invoke('load-file', {
-      path: SLIDES_PATH,
-    });
-    if (result) {
-      const slides = JSON.parse(result as string) as Slide[];
-      set({ slides, currentSlideIndex: 0 });
+    let raw: string | null = null;
+    if (window.electronAPI) {
+      raw = (await window.electronAPI.invoke('load-file', { path: SLIDES_PATH })) as string | null;
+    } else {
+      raw = localStorage.getItem('signage-slides');
+    }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Handle both array format and legacy object format
+      const arr = Array.isArray(parsed) ? parsed : [];
+      if (arr.length > 0) {
+        const slides = arr.map((item: Record<string, unknown>) => migrateSlide(item));
+        set({ slides, currentSlideIndex: 0 });
+      }
     }
   },
 }));

@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   invoke: (channel: string, data?: unknown) => {
-    const allowedChannels = ['get-displays', 'save-file', 'load-file'];
+    const allowedChannels = ['get-displays', 'save-file', 'load-file', 'select-media-file', 'copy-media-file', 'get-media-path'];
     if (allowedChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
     }

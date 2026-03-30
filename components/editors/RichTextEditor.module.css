@@ -1,0 +1,120 @@
+.wrapper {
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #16213e;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: #0a0a1a;
+  border-bottom: 1px solid #333;
+  flex-wrap: wrap;
+}
+
+.select {
+  background: #16213e;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn {
+  background: #16213e;
+  color: #ccc;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.btn:hover {
+  background: #1a5276;
+}
+
+.active {
+  background: #0f3460;
+  border-color: #4a9eff;
+  color: #fff;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: #333;
+  margin: 0 4px;
+}
+
+.colorGroup {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.colorBtn {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid #555;
+  cursor: pointer;
+  padding: 0;
+}
+
+.colorBtn:hover {
+  border-color: #fff;
+  transform: scale(1.2);
+}
+
+/* WYSIWYG canvas: 5760x1080 native, scaled to editor panel width */
+.canvasWrapper {
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.canvas {
+  width: 5760px;
+  height: 1080px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+.editor {
+  width: 5760px;
+  height: 1080px;
+  color: #fff;
+  font-size: 68px;
+  line-height: 1.4;
+}
+
+.editor :global(.tiptap) {
+  outline: none;
+  width: 5760px;
+  height: 1080px;
+  padding-left: 80px;
+  padding-right: 80px;
+  word-break: keep-all;
+  cursor: text;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.editor :global(.tiptap p) {
+  margin: 0;
+}

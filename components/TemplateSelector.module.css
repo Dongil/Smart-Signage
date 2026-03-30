@@ -1,0 +1,59 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #16213e;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 320px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #eee;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  background: #0a0a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #eee;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.option:hover {
+  border-color: #0f3460;
+  background: #0f3460;
+}
+
+.icon {
+  font-size: 28px;
+  font-weight: 700;
+  color: #4a9eff;
+}
+
+.label {
+  font-size: 14px;
+}

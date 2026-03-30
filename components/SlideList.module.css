@@ -74,6 +74,15 @@
   white-space: nowrap;
 }
 
+.typeIcon {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a9eff;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .deleteBtn {
   background: none;
   border: none;

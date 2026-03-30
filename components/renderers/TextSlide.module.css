@@ -1,0 +1,17 @@
+.container {
+  width: 5760px;
+  height: 1080px;
+  /* vertical padding set dynamically via inline style based on font size */
+  padding-left: 80px;
+  padding-right: 80px;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: #fff;
+  font-size: 68px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+.container p {
+  margin: 0;
+}

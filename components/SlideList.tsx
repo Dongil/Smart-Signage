@@ -1,6 +1,11 @@
+// Design Ref: §10.2 — SlideList with TemplateSelector integration
 'use client';
 
+import { useState } from 'react';
+import { SlideType } from '@/types/slide';
 import { useSignageStore } from '@/store/useSignageStore';
+import { templateRegistry } from './templates/templateRegistry';
+import TemplateSelector from './TemplateSelector';
 import styles from './SlideList.module.css';
 
 export default function SlideList() {
@@ -11,13 +16,20 @@ export default function SlideList() {
   const deleteSlide = useSignageStore((state) => state.deleteSlide);
   const reorderSlides = useSignageStore((state) => state.reorderSlides);
 
-  const handleAdd = () => {
+  const [showSelector, setShowSelector] = useState(false);
+
+  const handleAddSlide = (type: SlideType) => {
+    const template = templateRegistry.get(type);
+    if (!template) return;
     addSlide({
       id: crypto.randomUUID(),
-      title: `슬라이드 ${slides.length + 1}`,
-      content: '',
-      backgroundColor: '#1a1a2e',
-      duration: 5,
+      type,
+      title: template.defaultSlide.title ?? `새 ${template.label} 슬라이드`,
+      content: template.defaultSlide.content ?? '',
+      backgroundColor: template.defaultSlide.backgroundColor ?? '#1a1a2e',
+      duration: template.defaultSlide.duration ?? 5,
+      mediaPath: template.defaultSlide.mediaPath,
+      mediaOptions: template.defaultSlide.mediaOptions,
     });
   };
 
@@ -41,36 +53,46 @@ export default function SlideList() {
     <aside className={styles.sidebar}>
       <div className={styles.header}>
         <h2>슬라이드</h2>
-        <button className={styles.addBtn} onClick={handleAdd}>+ 추가</button>
+        <button className={styles.addBtn} onClick={() => setShowSelector(true)}>+ 추가</button>
       </div>
       <ul className={styles.list}>
-        {slides.map((slide, index) => (
-          <li
-            key={slide.id}
-            className={`${styles.item} ${index === currentSlideIndex ? styles.active : ''}`}
-            draggable
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDrop={(e) => handleDrop(e, index)}
-            onDragOver={handleDragOver}
-            onClick={() => setCurrentSlideIndex(index)}
-          >
-            <span
-              className={styles.colorDot}
-              style={{ backgroundColor: slide.backgroundColor }}
-            />
-            <span className={styles.title}>{slide.title}</span>
-            <button
-              className={styles.deleteBtn}
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteSlide(slide.id);
-              }}
+        {slides.map((slide, index) => {
+          const template = templateRegistry.get(slide.type);
+          return (
+            <li
+              key={slide.id}
+              className={`${styles.item} ${index === currentSlideIndex ? styles.active : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragOver={handleDragOver}
+              onClick={() => setCurrentSlideIndex(index)}
             >
-              x
-            </button>
-          </li>
-        ))}
+              <span className={styles.typeIcon}>{template?.icon ?? '?'}</span>
+              <span
+                className={styles.colorDot}
+                style={{ backgroundColor: slide.backgroundColor }}
+              />
+              <span className={styles.title}>{slide.title || template?.label}</span>
+              <button
+                className={styles.deleteBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteSlide(slide.id);
+                }}
+              >
+                x
+              </button>
+            </li>
+          );
+        })}
       </ul>
+      {showSelector && (
+        <TemplateSelector
+          onSelect={handleAddSlide}
+          onClose={() => setShowSelector(false)}
+        />
+      )}
     </aside>
   );
 }

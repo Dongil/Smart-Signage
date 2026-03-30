@@ -26,3 +26,9 @@ Thumbs.db
 
 # electron
 release/
+
+# tools
+.playwright-mcp/
+.bkit/
+.claude/settings.local.json
+next-env.d.ts
