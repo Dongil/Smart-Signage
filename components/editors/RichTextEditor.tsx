@@ -74,13 +74,16 @@ export default function RichTextEditor({ content, backgroundColor, onChange }: P
   // Calculate scale based on container width
   const updateScale = useCallback(() => {
     if (wrapperRef.current) {
-      const containerWidth = wrapperRef.current.clientWidth;
+      // Use parent's width (editor section) to avoid overflow measurement issues
+      const parent = wrapperRef.current.parentElement;
+      const containerWidth = parent ? parent.clientWidth : wrapperRef.current.clientWidth;
       setScale(containerWidth / CANVAS_W);
     }
   }, []);
 
   useEffect(() => {
-    updateScale();
+    // Delay initial measurement to ensure layout is complete
+    requestAnimationFrame(() => requestAnimationFrame(updateScale));
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
   }, [updateScale]);

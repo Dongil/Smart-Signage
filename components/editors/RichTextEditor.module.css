@@ -95,6 +95,24 @@
   transform-origin: top left;
 }
 
+/* 3-monitor guide lines at 1920px intervals */
+.canvas::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5760px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 10;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.25) 4px, transparent 4px),
+    linear-gradient(to right, rgba(255,255,255,0.25) 4px, transparent 4px);
+  background-size: 1920px 100%;
+  background-position: 1918px 0, 3838px 0;
+  background-repeat: no-repeat;
+}
+
 .editor {
   width: 5760px;
   height: 1080px;

@@ -44,6 +44,25 @@
   position: relative;
 }
 
+/* 3-monitor guide overlay - same scale as .scaler */
+.guides {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5760px;
+  height: 1080px;
+  transform: scale(0.05);
+  transform-origin: top left;
+  pointer-events: none;
+  z-index: 10;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.3) 4px, transparent 4px),
+    linear-gradient(to right, rgba(255,255,255,0.3) 4px, transparent 4px);
+  background-size: 1920px 100%;
+  background-position: 1918px 0, 3838px 0;
+  background-repeat: no-repeat;
+}
+
 .scaler {
   width: 5760px;
   height: 1080px;

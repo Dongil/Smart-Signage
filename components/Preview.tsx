@@ -79,6 +79,7 @@ export default function Preview() {
             <div className={styles.scaler}>
               <RendererFactory slide={currentSlide} />
             </div>
+            <div className={styles.guides} />
           </div>
           <div className={styles.meta}>
             <span>{currentSlide.title || currentSlide.type}</span>
