@@ -1,28 +1,33 @@
-// Design Ref: §10.2 — SlideList with TemplateSelector integration
+// Design Ref: §10.2, §2.M4 — SlideList wired to API-backed store.
+//
+// v1.1 note: Image/Video/Webpage editors are scaffolded but not feature-
+// complete; the TemplateSelector dialog is therefore bypassed and "+ 추가"
+// always creates a text slide. Restore the selector once the other types
+// are production-ready.
+
 'use client';
 
 import { useState } from 'react';
 import { SlideType } from '@/types/slide';
 import { useSignageStore } from '@/store/useSignageStore';
 import { templateRegistry } from './templates/templateRegistry';
-import TemplateSelector from './TemplateSelector';
+import HwpxImportModal from './import/HwpxImportModal';
 import styles from './SlideList.module.css';
 
 export default function SlideList() {
-  const slides = useSignageStore((state) => state.slides);
-  const currentSlideIndex = useSignageStore((state) => state.currentSlideIndex);
-  const setCurrentSlideIndex = useSignageStore((state) => state.setCurrentSlideIndex);
-  const addSlide = useSignageStore((state) => state.addSlide);
-  const deleteSlide = useSignageStore((state) => state.deleteSlide);
-  const reorderSlides = useSignageStore((state) => state.reorderSlides);
+  const slides = useSignageStore((s) => s.slides);
+  const editingIndex = useSignageStore((s) => s.editingIndex);
+  const setEditingIndex = useSignageStore((s) => s.setEditingIndex);
+  const addSlide = useSignageStore((s) => s.addSlide);
+  const deleteSlide = useSignageStore((s) => s.deleteSlide);
+  const reorderSlides = useSignageStore((s) => s.reorderSlides);
 
-  const [showSelector, setShowSelector] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
-  const handleAddSlide = (type: SlideType) => {
+  const handleAddSlide = async (type: SlideType) => {
     const template = templateRegistry.get(type);
     if (!template) return;
-    addSlide({
-      id: crypto.randomUUID(),
+    await addSlide({
       type,
       title: template.defaultSlide.title ?? `새 ${template.label} 슬라이드`,
       content: template.defaultSlide.content ?? '',
@@ -37,12 +42,14 @@ export default function SlideList() {
     e.dataTransfer.setData('text/plain', String(index));
   };
 
-  const handleDrop = (e: React.DragEvent, toIndex: number) => {
+  const handleDrop = async (e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
     const fromIndex = Number(e.dataTransfer.getData('text/plain'));
-    if (fromIndex !== toIndex) {
-      reorderSlides(fromIndex, toIndex);
-    }
+    if (fromIndex === toIndex) return;
+    const next = [...slides];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    await reorderSlides(next.map((s) => s.id));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -53,7 +60,22 @@ export default function SlideList() {
     <aside className={styles.sidebar}>
       <div className={styles.header}>
         <h2>슬라이드</h2>
-        <button className={styles.addBtn} onClick={() => setShowSelector(true)}>+ 추가</button>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.addBtn}
+            onClick={() => handleAddSlide('text')}
+            title="텍스트 슬라이드를 추가합니다 (이미지/동영상/웹은 v1.2 예정)"
+          >
+            + 추가
+          </button>
+          <button
+            className={styles.importBtn}
+            onClick={() => setShowImport(true)}
+            title=".hwpx 문서를 슬라이드로 자동 분할하여 불러옵니다"
+          >
+            불러오기
+          </button>
+        </div>
       </div>
       <ul className={styles.list}>
         {slides.map((slide, index) => {
@@ -61,12 +83,12 @@ export default function SlideList() {
           return (
             <li
               key={slide.id}
-              className={`${styles.item} ${index === currentSlideIndex ? styles.active : ''}`}
+              className={`${styles.item} ${index === editingIndex ? styles.active : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, index)}
               onDrop={(e) => handleDrop(e, index)}
               onDragOver={handleDragOver}
-              onClick={() => setCurrentSlideIndex(index)}
+              onClick={() => setEditingIndex(index)}
             >
               <span className={styles.typeIcon}>{template?.icon ?? '?'}</span>
               <span
@@ -87,12 +109,7 @@ export default function SlideList() {
           );
         })}
       </ul>
-      {showSelector && (
-        <TemplateSelector
-          onSelect={handleAddSlide}
-          onClose={() => setShowSelector(false)}
-        />
-      )}
+      {showImport && <HwpxImportModal onClose={() => setShowImport(false)} />}
     </aside>
   );
 }

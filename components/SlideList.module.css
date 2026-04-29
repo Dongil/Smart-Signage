@@ -20,18 +20,37 @@
   font-weight: 600;
 }
 
-.addBtn {
-  background: #0f3460;
+.headerActions {
+  display: flex;
+  gap: 6px;
+}
+
+.addBtn,
+.importBtn {
   color: #eee;
-  border: none;
-  padding: 6px 12px;
+  border: 1px solid transparent;
+  padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.addBtn {
+  background: #0f3460;
 }
 
 .addBtn:hover {
   background: #1a5276;
+}
+
+.importBtn {
+  background: transparent;
+  border-color: #0f3460;
+  color: #cdd;
+}
+
+.importBtn:hover {
+  background: #0f3460;
 }
 
 .list {

@@ -7,10 +7,10 @@ import styles from './SlideEditor.module.css';
 
 export default function SlideEditor() {
   const slides = useSignageStore((state) => state.slides);
-  const currentSlideIndex = useSignageStore((state) => state.currentSlideIndex);
+  const editingIndex = useSignageStore((state) => state.editingIndex);
   const updateSlide = useSignageStore((state) => state.updateSlide);
 
-  const slide = slides[currentSlideIndex];
+  const slide = slides[editingIndex];
 
   if (!slide) {
     return (

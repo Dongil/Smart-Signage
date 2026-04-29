@@ -1,79 +1,76 @@
-// Design Ref: §9 — SignageRenderer with full slide array + auto slideshow
+// Design Ref: §2.M4, §1.3, §6 — Signage output driven by SQLite + SSE.
+// State sources:
+//   - useSignageStore.slides     (server mirror)
+//   - usePlaybackStore           (server PlaybackState mirror via SSE)
+// Auto-advance behavior moves to Module 5 (PlaybackControls). For now,
+// we honor isPlaying + currentIndex from the server so SSE control already works.
+
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Slide } from '@/types/slide';
-import { useSignageListener } from '@/hooks/useElectronIPC';
+import { useEffect, useState, useRef } from 'react';
+import { useSignageStore } from '@/store/useSignageStore';
+import { usePlaybackStore } from '@/store/usePlaybackStore';
+import { useSignageLiveness } from '@/hooks/useSignageLiveness';
 import BaseRenderer from './renderers/BaseRenderer';
 import RendererFactory from './renderers/RendererFactory';
 import styles from './SignageRenderer.module.css';
 
-const SIGNAGE_STATE_KEY = 'signage-state';
-
 export default function SignageRenderer() {
-  const [slides, setSlides] = useState<Slide[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const slides = useSignageStore((s) => s.slides);
+  const hydrateSlides = useSignageStore((s) => s.hydrate);
+  const hydratePlayback = usePlaybackStore((s) => s.hydrate);
+  const dispatch = usePlaybackStore((s) => s.dispatch);
+  const currentIndex = usePlaybackStore((s) => s.currentIndex);
+  const isPlaying = usePlaybackStore((s) => s.isPlaying);
+
   const [isVisible, setIsVisible] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSlidesReceived = useCallback((newSlides: Slide[], startIndex: number) => {
-    setSlides(newSlides);
-    setActiveIndex(startIndex);
-    setIsVisible(true);
-  }, []);
+  // Tells the editor "I'm here". Closing this window stops the heartbeat
+  // and the editor flips to "출력 없음" within ~3 seconds (or instantly via
+  // the sendBeacon stop signal on graceful close).
+  useSignageLiveness();
 
-  useSignageListener(handleSlidesReceived);
-
-  const advanceSlide = useCallback(() => {
-    if (slides.length <= 1) return;
-    setIsVisible(false);
-    setTimeout(() => {
-      setActiveIndex((prev) => (prev + 1) % slides.length);
-      setIsVisible(true);
-    }, 500);
-  }, [slides.length]);
-
-  const handleVideoEnd = useCallback(() => {
-    advanceSlide();
-  }, [advanceSlide]);
-
-  // Auto slideshow (duration-based)
   useEffect(() => {
-    if (slides.length <= 1) return;
-    const currentSlide = slides[activeIndex];
-    if (!currentSlide) return;
+    hydrateSlides();
+    hydratePlayback();
+  }, [hydrateSlides, hydratePlayback]);
 
-    if (currentSlide.type === 'video' && !currentSlide.mediaOptions?.loop) {
+  // Local fade animation when slide changes.
+  useEffect(() => {
+    setIsVisible(false);
+    const t = setTimeout(() => setIsVisible(true), 250);
+    return () => clearTimeout(t);
+  }, [currentIndex]);
+
+  // Auto-advance — only the signage device drives this so the timer fires
+  // exactly once per slide regardless of how many remote viewers are connected.
+  useEffect(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (!isPlaying) return;
+    if (slides.length <= 1) return;
+    const slide = slides[currentIndex];
+    if (!slide) return;
+    if (slide.type === 'video' && !slide.mediaOptions?.loop) {
+      // Video auto-advance happens via onVideoEnd.
       return;
     }
-
-    timerRef.current = setTimeout(advanceSlide, currentSlide.duration * 1000);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [activeIndex, slides, advanceSlide]);
-
-  // Broadcast state to editor (heartbeat + current index)
-  useEffect(() => {
-    if (slides.length === 0) return;
-
-    const broadcast = () => {
-      localStorage.setItem(SIGNAGE_STATE_KEY, JSON.stringify({
-        activeIndex,
-        totalSlides: slides.length,
-        timestamp: Date.now(),
-      }));
-    };
-
-    broadcast();
-    const interval = setInterval(broadcast, 500);
-
-    // Cleanup: remove state on unmount (window close)
+    timerRef.current = setTimeout(() => {
+      dispatch({ action: 'next' }).catch(() => undefined);
+    }, slide.duration * 1000);
     return () => {
-      clearInterval(interval);
-      localStorage.removeItem(SIGNAGE_STATE_KEY);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [activeIndex, slides.length]);
+  }, [isPlaying, currentIndex, slides, dispatch]);
 
-  const currentSlide = slides[activeIndex];
+  const handleVideoEnd = () => {
+    dispatch({ action: 'next' }).catch(() => undefined);
+  };
+
+  const currentSlide = slides[currentIndex];
 
   if (!currentSlide) {
     return (

@@ -7,6 +7,10 @@ out/
 
 # build
 dist/
+*.tsbuildinfo
+
+# dev (local-only)
+.signage-dev/
 
 # env
 .env

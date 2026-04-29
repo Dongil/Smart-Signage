@@ -92,3 +92,14 @@
   color: #888;
   padding: 0 4px;
 }
+
+.hint {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.1);
+  border: 1px solid rgba(255, 184, 77, 0.25);
+  border-radius: 4px;
+  text-align: center;
+}

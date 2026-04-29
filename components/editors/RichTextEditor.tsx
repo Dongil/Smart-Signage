@@ -35,15 +35,22 @@ const COLORS = [
 ];
 
 interface Props {
+  /** Stable identifier for the active slide. Different slideId ⇒ force-load
+   *  new content, even if the user is currently typing/composing. */
+  slideId: string;
   content: string;
   backgroundColor?: string;
   onChange: (html: string) => void;
 }
 
-export default function RichTextEditor({ content, backgroundColor, onChange }: Props) {
+export default function RichTextEditor({ slideId, content, backgroundColor, onChange }: Props) {
   const prevContentRef = useRef(content);
+  const prevSlideIdRef = useRef(slideId);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.15);
+  // Forces re-render after setContent so the toolbar's editor.isActive(...)
+  // / getAttributes(...) reads reflect the new slide's marks.
+  const [, setRenderTick] = useState(0);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -61,15 +68,42 @@ export default function RichTextEditor({ content, backgroundColor, onChange }: P
       prevContentRef.current = html;
       onChange(html);
     },
+    onSelectionUpdate: () => {
+      // Toolbar's button states depend on selection — re-render on every move.
+      setRenderTick((n) => n + 1);
+    },
   });
 
-  // Sync editor content when slide changes
+  // Sync editor content from props.
+  //
+  //   - Slide switch (slideId changed): always swap content even if focused —
+  //     the user is no longer editing the previous slide.
+  //   - Same slide, content drifted (SSE echo from another client) AND editor
+  //     not focused / not composing: sync silently.
+  //   - Same slide while user is editing: ignore prop changes. This is the
+  //     fix for the Korean IME double-input bug — without it, the round-trip
+  //     PUT → SSE → re-hydrate → setContent would interrupt composition.
   useEffect(() => {
-    if (editor && content !== prevContentRef.current) {
-      editor.commands.setContent(content, false);
+    if (!editor) return;
+    const slideChanged = slideId !== prevSlideIdRef.current;
+    const contentDiff = content !== prevContentRef.current;
+
+    if (slideChanged) {
+      editor.commands.setContent(content, { emitUpdate: false });
+      prevSlideIdRef.current = slideId;
       prevContentRef.current = content;
+      setRenderTick((n) => n + 1); // refresh toolbar state for the new slide
+      return;
     }
-  }, [content, editor]);
+    if (!contentDiff) return;
+
+    const composing = (editor.view as unknown as { composing?: boolean }).composing === true;
+    if (editor.isFocused || composing) return;
+
+    editor.commands.setContent(content, { emitUpdate: false });
+    prevContentRef.current = content;
+    setRenderTick((n) => n + 1);
+  }, [slideId, content, editor]);
 
   // Calculate scale based on container width
   const updateScale = useCallback(() => {
@@ -103,13 +137,33 @@ export default function RichTextEditor({ content, backgroundColor, onChange }: P
   if (!editor) return null;
 
   const applyFontSize = (size: string) => {
-    // If no selection, select all text first
+    // 1) If user has a selection, apply the mark to that range.
+    // 2) If no selection but the document already has text, select-all and apply.
+    // 3) If the doc is empty, plain `setMark` doesn't paint anything; we have
+    //    to seed `storedMarks` so the next typed character inherits the size.
+    //    This fixes the "new slide ignores selected font, falls back to 68px"
+    //    bug — without storedMarks, the empty selection drops the mark.
     const { from, to } = editor.state.selection;
-    if (from === to) {
-      editor.chain().focus().selectAll().setMark('textStyle', { fontSize: size }).run();
-    } else {
+
+    if (from !== to) {
       editor.chain().focus().setMark('textStyle', { fontSize: size }).run();
+      return;
     }
+
+    if (!editor.isEmpty) {
+      editor.chain().focus().selectAll().setMark('textStyle', { fontSize: size }).run();
+      // Restore caret to end so the next keystroke continues normally.
+      editor.commands.focus('end');
+    }
+
+    // Seed storedMarks so future typing carries the chosen size.
+    const view = editor.view;
+    const textStyleType = view.state.schema.marks.textStyle;
+    if (textStyleType) {
+      const tr = view.state.tr.setStoredMarks([textStyleType.create({ fontSize: size })]);
+      view.dispatch(tr);
+    }
+    editor.commands.focus();
   };
 
   return (

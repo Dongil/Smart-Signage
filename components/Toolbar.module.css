@@ -1,10 +1,39 @@
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
   background: #0a0a1a;
   border-bottom: 1px solid #333;
+  gap: 8px;
+}
+
+.errorBanner {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: #ff9c9c;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.errorClose {
+  background: transparent;
+  border: none;
+  color: #ff9c9c;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.errorClose:hover {
+  color: #ff6b6b;
 }
 
 .logo {
@@ -16,6 +45,15 @@
 .actions {
   display: flex;
   gap: 10px;
+  align-items: center;
+}
+
+.deviceInfo {
+  font-size: 12px;
+  color: #888;
+  padding-left: 8px;
+  border-left: 1px solid #333;
+  margin-left: 4px;
 }
 
 .btn {

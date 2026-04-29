@@ -1,0 +1,90 @@
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #0f1525;
+  border: 1px solid #2a2f45;
+  border-radius: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  background: #16213e;
+  color: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  width: 32px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.btn:hover:not(:disabled) {
+  background: #1a5276;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: #0f3460;
+  border-color: #0f3460;
+  color: #fff;
+  width: 40px;
+}
+
+.counter {
+  margin-left: auto;
+  font-size: 11px;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 11px;
+  color: #aaa;
+  width: 60px;
+}
+
+.slider {
+  flex: 1;
+  accent-color: #4a9eff;
+}
+
+.numberInput {
+  width: 52px;
+  background: #16213e;
+  color: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  font-size: 11px;
+  color: #888;
+}
+
+.shortcutHint {
+  font-size: 10px;
+  color: #555;
+  text-align: center;
+  padding-top: 2px;
+  border-top: 1px solid #1f253a;
+  margin-top: 2px;
+}
