@@ -50,6 +50,16 @@ export function useSignageLiveness() {
   // Heartbeat loop — only beats while `active` is true. Flipping to false
   // immediately POSTs a stop so the editor sees "출력 없음" without waiting
   // for the 3-second server timeout.
+  //
+  // Important: the cleanup of this effect runs ALSO on deps change (false→true
+  // and true→false). If we sent signageStop() in the cleanup, the next
+  // signageHeartbeat() would race with it, sometimes letting stop arrive last
+  // and pinning the server at signageActive=false. That caused "first click
+  // shows signage but PlaybackControls stay hidden until a second click."
+  //
+  // Fix: the `else` branch below handles every true→false transition
+  // (window hidden → explicit stop). Real unmount is handled by a separate
+  // empty-deps effect below.
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -67,6 +77,15 @@ export function useSignageLiveness() {
       controlApi.signageStop().catch(() => undefined);
     }
 
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [active]);
+
+  // Window-close / unmount safety net — only fires on actual page teardown,
+  // never on active-flip. Uses sendBeacon so the stop survives abrupt closes.
+  useEffect(() => {
     const sendStopBeacon = () => {
       if (typeof navigator === 'undefined' || !navigator.sendBeacon) return;
       getApiBaseUrl()
@@ -87,11 +106,9 @@ export function useSignageLiveness() {
     window.addEventListener('beforeunload', sendStopBeacon);
 
     return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
       window.removeEventListener('pagehide', sendStopBeacon);
       window.removeEventListener('beforeunload', sendStopBeacon);
       controlApi.signageStop().catch(() => undefined);
     };
-  }, [active]);
+  }, []);
 }
