@@ -10,6 +10,7 @@ import { eventBus } from './eventBus';
 import { listSlides, updateSlide } from './slideService';
 import { getSetting } from './settingsService';
 import type { PlaybackState } from '../events';
+import type { SignageMode } from '../../../types/slide';
 
 export type ControlAction =
   | { action: 'play' }
@@ -52,8 +53,16 @@ function publicSnapshot(): PlaybackState {
   };
 }
 
+function getCurrentMode(): SignageMode {
+  // Design Ref: signage-mode §3.2.3 — playback always operates on the slide
+  // collection of the currently selected mode. Default 'surround' covers
+  // both fresh installs and migrated v1.3 data.
+  const stored = getSetting<SignageMode>('signage.mode');
+  return stored === 'individual' ? 'individual' : 'surround';
+}
+
 function refreshFromSlides(): void {
-  const slides = listSlides();
+  const slides = listSlides(getCurrentMode());
   state.totalSlides = slides.length;
   if (state.currentIndex >= slides.length) {
     state.currentIndex = Math.max(0, slides.length - 1);
@@ -87,6 +96,16 @@ export function initControl(): void {
     livenessTimer = setInterval(tickLiveness, LIVENESS_TICK_MS);
     if (typeof livenessTimer.unref === 'function') livenessTimer.unref();
   }
+  // signage-mode §3.2.3 — when the user flips signage.mode, slide collections
+  // swap entirely. Reset playback so the new mode starts fresh instead of
+  // pointing at a stale currentIndex that may exceed the new mode's count.
+  eventBus.on((event) => {
+    if (event.type === 'settings.changed' && event.key === 'signage.mode') {
+      state.currentIndex = 0;
+      state.isPlaying = false;
+      commit();
+    }
+  });
 }
 
 export function shutdownControl(): void {
@@ -134,7 +153,7 @@ export function markSignageStopped(): PlaybackState {
  * the browser-side window.open() that bit us in earlier iterations.
  */
 export function requestSignage(action: 'show' | 'hide'): PlaybackState {
-  if (action === 'show' && listSlides().length > 0) {
+  if (action === 'show' && listSlides(getCurrentMode()).length > 0) {
     state.isPlaying = true;
   } else if (action === 'hide' && state.isPlaying) {
     state.isPlaying = false;
@@ -145,7 +164,7 @@ export function requestSignage(action: 'show' | 'hide'): PlaybackState {
 }
 
 export function dispatchControl(cmd: ControlAction): PlaybackState {
-  const slides = listSlides();
+  const slides = listSlides(getCurrentMode());
   const total = slides.length;
 
   switch (cmd.action) {

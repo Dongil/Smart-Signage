@@ -6,7 +6,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { nowEpochSeconds } from './database';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+// signage-mode §3.1 — bump to 2 for slides.mode column.
+export const CURRENT_SCHEMA_VERSION = 2;
 
 interface AppMetaRow {
   value: string;
@@ -61,8 +62,32 @@ export function runMigrations(db: Database.Database): void {
     db.prepare(
       'INSERT OR IGNORE INTO app_meta (key, value) VALUES (?, ?)'
     ).run('app_version', '1.1.0');
+    return;
   }
-  // Future migrations (e.g. v1 → v2) would chain here.
+  // Design Ref: signage-mode §3.1 — v1 → v2: add slides.mode for surround/individual
+  if (current < 2) {
+    addSlideModeColumn(db);
+    setSchemaVersion(db, 2);
+  }
+}
+
+interface ColumnInfoRow {
+  name: string;
+}
+
+function addSlideModeColumn(db: Database.Database): void {
+  // Idempotent: skip ALTER if a previous run already added the column
+  // (e.g. partial migration on a crashed boot).
+  const cols = db.prepare('PRAGMA table_info(slides)').all() as ColumnInfoRow[];
+  const hasMode = cols.some((c) => c.name === 'mode');
+  if (!hasMode) {
+    db.exec(
+      "ALTER TABLE slides ADD COLUMN mode TEXT NOT NULL DEFAULT 'surround'"
+    );
+  }
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_slides_mode_position ON slides(mode, position)'
+  );
 }
 
 /**

@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS: Array<[string, unknown]> = [
   ['ui.theme', 'dark'],
   // Design Ref: signage-resolution §3.1.1 — default canvas resolution
   ['signage.resolution', { w: 5760, h: 1080 }],
+  // Design Ref: signage-mode §3.3.2 — default mode for fresh installs
+  ['signage.mode', 'surround'],
   // Design Ref: ui-redesign §3.1.5 — operational option defaults
   ['slide.padding', 50],
   ['slide.transitionSec', 0.5],

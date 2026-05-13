@@ -22,6 +22,24 @@
   will-change: opacity;
 }
 
+/* signage-mode §3.6.2 — individual mode tiles the same slide ×N across the
+ * full 5760-wide signage window so any monitor receiving the signal shows
+ * the same 1920-wide content. */
+.tileRow {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--tile-count, 1), 1fr);
+}
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .waiting {
   color: #333;
   text-align: center;

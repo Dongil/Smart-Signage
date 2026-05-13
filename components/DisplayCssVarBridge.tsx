@@ -12,22 +12,29 @@ import { useDisplayMetrics } from '@/hooks/useDisplayMetrics';
 import { useOption } from '@/hooks/useOption';
 
 export default function DisplayCssVarBridge() {
-  const { w, h, aspectRatio } = useDisplayMetrics();
+  const { w, h, aspectRatio, tileCount } = useDisplayMetrics();
   const slidePadding = useOption<number>('slide.padding');
   const transitionSec = useOption<number>('slide.transitionSec');
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const body = document.body;
+    // signage-mode §3.4.2 — `canvas-*` describes a single editor tile,
+    // while `signage-*` describes the full signage window (one tile in
+    // surround mode, `tileCount` tiles concatenated in individual mode).
     body.style.setProperty('--canvas-w', `${w}px`);
     body.style.setProperty('--canvas-h', `${h}px`);
     body.style.setProperty('--canvas-aspect', aspectRatio);
+    body.style.setProperty('--tile-count', `${tileCount}`);
+    const signageW = w * tileCount;
+    body.style.setProperty('--signage-w', `${signageW}px`);
+    body.style.setProperty('--signage-aspect', `${signageW} / ${h}`);
     body.style.setProperty('--slide-padding-y', `${slidePadding}px`);
     body.style.setProperty(
       '--slide-transition',
       transitionSec > 0 ? `opacity ${transitionSec}s ease-in-out` : 'none'
     );
-  }, [w, h, aspectRatio, slidePadding, transitionSec]);
+  }, [w, h, aspectRatio, tileCount, slidePadding, transitionSec]);
 
   return null;
 }

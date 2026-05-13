@@ -1,11 +1,13 @@
 // Design Ref: §3.1, §5.1 — Maps SQLite rows ⇆ API/Slide domain shape.
 // API uses camelCase (matches frontend Slide type); SQLite uses snake_case.
+// signage-mode §3.2.1 — `mode` flows through unchanged on both sides.
 
-import type { Slide, SlideType, MediaOptions } from '../../../types/slide';
+import type { Slide, SlideType, MediaOptions, SignageMode } from '../../../types/slide';
 
 export interface SlideRow {
   id: string;
   type: SlideType;
+  mode: SignageMode;
   title: string;
   content: string;
   background_color: string;
@@ -21,6 +23,7 @@ export function rowToSlide(row: SlideRow): Slide {
   const slide: Slide = {
     id: row.id,
     type: row.type,
+    mode: row.mode,
     title: row.title,
     content: row.content,
     backgroundColor: row.background_color,

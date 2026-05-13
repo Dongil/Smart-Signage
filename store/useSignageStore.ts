@@ -11,13 +11,17 @@ import { create } from 'zustand';
 import { slidesApi, type CreateSlidePayload, type UpdateSlidePayload } from '@/lib/api/slides';
 import { settingsApi } from '@/lib/api/settings';
 import { OPTION_REGISTRY, isRegistryKey, getOptionDefault } from '@/lib/options/registry';
-import type { Slide } from '@/types/slide';
+import type { Slide, SignageMode } from '@/types/slide';
 
 export type { Slide };
 
 export interface SignageResolution {
   w: number;
   h: number;
+}
+
+function pickMode(options: Record<string, unknown>): SignageMode {
+  return options['signage.mode'] === 'individual' ? 'individual' : 'surround';
 }
 
 interface SignageState {
@@ -114,7 +118,10 @@ export const useSignageStore = create<SignageState>((set, get) => ({
   },
 
   addSlide: async (payload) => {
-    const created = await slidesApi.create(payload);
+    // signage-mode §3.5.3 — new slides inherit the active mode so SlideList
+    // immediately shows them. Caller can override by passing mode explicitly.
+    const mode = payload.mode ?? pickMode(get().options);
+    const created = await slidesApi.create({ ...payload, mode });
     // SSE will eventually re-hydrate, but updating eagerly avoids flicker.
     set((s) => ({ slides: [...s.slides, created] }));
     return created;
@@ -158,13 +165,28 @@ export const useSignageStore = create<SignageState>((set, get) => ({
   },
 
   reorderSlides: async (orderedIds) => {
+    // signage-mode §3.5.3 — reorder is scoped to the current mode. Slides of
+    // the other mode keep their relative order untouched on the client too.
+    const mode = pickMode(get().options);
     const prev = get().slides;
     const map = new Map(prev.map((s) => [s.id, s]));
-    const optimistic = orderedIds.map((id) => map.get(id)).filter(Boolean) as Slide[];
+    const reorderedIds = orderedIds.filter((id) => map.get(id)?.mode === mode);
+    const reordered = reorderedIds
+      .map((id) => map.get(id))
+      .filter((s): s is Slide => Boolean(s));
+    const optimistic = [
+      ...prev.filter((s) => s.mode !== mode),
+      ...reordered,
+    ];
     set({ slides: optimistic });
     try {
-      const updated = await slidesApi.reorder(orderedIds);
-      set({ slides: updated });
+      const updatedThisMode = await slidesApi.reorder(mode, reorderedIds);
+      set((s) => ({
+        slides: [
+          ...s.slides.filter((sl) => sl.mode !== mode),
+          ...updatedThisMode,
+        ],
+      }));
     } catch (e) {
       set({ slides: prev, error: e instanceof Error ? e.message : 'reorder-failed' });
       throw e;

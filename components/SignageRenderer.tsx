@@ -14,13 +14,14 @@
 
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useSignageStore } from '@/store/useSignageStore';
 import { usePlaybackStore } from '@/store/usePlaybackStore';
 import { useSignageLiveness } from '@/hooks/useSignageLiveness';
 import { useOption } from '@/hooks/useOption';
+import { useDisplayMetrics } from '@/hooks/useDisplayMetrics';
 import RendererFactory from './renderers/RendererFactory';
-import type { Slide } from '@/types/slide';
+import type { Slide, SignageMode } from '@/types/slide';
 import styles from './SignageRenderer.module.css';
 
 export default function SignageRenderer() {
@@ -31,8 +32,18 @@ export default function SignageRenderer() {
   const currentIndex = usePlaybackStore((s) => s.currentIndex);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
   const transitionSec = useOption<number>('slide.transitionSec');
+  const mode = useOption<SignageMode>('signage.mode');
+  const { tileCount } = useDisplayMetrics();
 
-  const target: Slide | null = slides[currentIndex] ?? null;
+  // signage-mode §3.6.1 — only slides of the current mode are eligible for
+  // playback; controlService's currentIndex is indexed into this filtered
+  // collection, so they must agree on the same view of the data.
+  const visibleSlides = useMemo(
+    () => slides.filter((s) => s.mode === mode),
+    [slides, mode]
+  );
+
+  const target: Slide | null = visibleSlides[currentIndex] ?? null;
 
   const [committed, setCommitted] = useState<Slide | null>(target);
   const [incoming, setIncoming] = useState<Slide | null>(null);
@@ -114,8 +125,8 @@ export default function SignageRenderer() {
       timerRef.current = null;
     }
     if (!isPlaying) return;
-    if (slides.length <= 1) return;
-    const slide = slides[currentIndex];
+    if (visibleSlides.length <= 1) return;
+    const slide = visibleSlides[currentIndex];
     if (!slide) return;
     if (slide.type === 'video' && !slide.mediaOptions?.loop) {
       // Video auto-advance happens via onVideoEnd.
@@ -127,7 +138,7 @@ export default function SignageRenderer() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isPlaying, currentIndex, slides, dispatch]);
+  }, [isPlaying, currentIndex, visibleSlides, dispatch]);
 
   const handleVideoEnd = useCallback(() => {
     dispatch({ action: 'next' }).catch(() => undefined);
@@ -144,6 +155,27 @@ export default function SignageRenderer() {
   const transitionCss =
     transitionSec > 0 ? `opacity ${transitionSec}s ease-in-out` : 'none';
 
+  // signage-mode §3.6.1 — individual mode tiles the 1920-wide slide ×3
+  // across the 5760-wide signage window. Only the first tile receives the
+  // onVideoEnd callback so a single "next" fires per slide.
+  const renderTiles = (slide: Slide) => {
+    if (tileCount <= 1) {
+      return <RendererFactory slide={slide} onVideoEnd={handleVideoEnd} />;
+    }
+    return (
+      <div className={styles.tileRow}>
+        {Array.from({ length: tileCount }).map((_, i) => (
+          <div key={i} className={styles.tile}>
+            <RendererFactory
+              slide={slide}
+              onVideoEnd={i === 0 ? handleVideoEnd : undefined}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className={styles.container}>
       <div
@@ -154,7 +186,7 @@ export default function SignageRenderer() {
           zIndex: 0,
         }}
       >
-        <RendererFactory slide={committed} onVideoEnd={handleVideoEnd} />
+        {renderTiles(committed)}
       </div>
       {incoming && (
         <div
@@ -166,7 +198,7 @@ export default function SignageRenderer() {
             zIndex: 1,
           }}
         >
-          <RendererFactory slide={incoming} onVideoEnd={handleVideoEnd} />
+          {renderTiles(incoming)}
         </div>
       )}
     </div>

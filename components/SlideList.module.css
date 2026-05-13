@@ -59,6 +59,37 @@
   flex: 1;
 }
 
+/* signage-mode §3.5.4 — empty-state when current mode has no slides */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  color: #888;
+}
+
+.empty p {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.emptyHint {
+  color: #aaa;
+  font-size: 12px !important;
+}
+
+.importBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.importBtn:disabled:hover {
+  background: transparent;
+}
+
 .item {
   display: flex;
   align-items: center;

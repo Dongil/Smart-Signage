@@ -20,6 +20,19 @@ export const OPTION_REGISTRY: OptionSchema[] = [
     ],
   },
   {
+    // Design Ref: signage-mode §3.3.1 — surround = 5760×h once,
+    // individual = 1920×h slide tiled ×3 across the signage window.
+    key: 'signage.mode',
+    type: 'select',
+    label: '사이니지 모드',
+    hint: '서라운드: 5760 한 캔버스 / 개별: 1920 슬라이드 3번 반복',
+    default: 'surround',
+    options: [
+      { label: '서라운드', value: 'surround' },
+      { label: '개별', value: 'individual' },
+    ],
+  },
+  {
     key: 'slide.padding',
     type: 'number',
     label: '슬라이드 상하 여백',

@@ -1,26 +1,37 @@
 // Design Ref: §2.M2, §4.1 — Slide CRUD with optimistic ordering and event emission.
+// signage-mode §3.2.2 — mode-aware listing, creation, and reordering. Each mode
+// keeps its own position sequence so reordering one mode never touches the other.
 
 import { randomUUID } from 'crypto';
 import { getDatabase, nowEpochSeconds } from '../../db/database';
 import { eventBus } from './eventBus';
 import { rowToSlide, type SlideRow } from './slideMapper';
-import type { Slide, MediaOptions, SlideType } from '../../../types/slide';
+import type { Slide, MediaOptions, SlideType, SignageMode } from '../../../types/slide';
 
 const SELECT_ALL = `
-  SELECT id, type, title, content, background_color, duration,
+  SELECT id, type, mode, title, content, background_color, duration,
          media_path, media_options, position, created_at, updated_at
   FROM slides
+  ORDER BY mode ASC, position ASC, created_at ASC
+`;
+
+const SELECT_BY_MODE = `
+  SELECT id, type, mode, title, content, background_color, duration,
+         media_path, media_options, position, created_at, updated_at
+  FROM slides
+  WHERE mode = ?
   ORDER BY position ASC, created_at ASC
 `;
 
 const SELECT_BY_ID = `
-  SELECT id, type, title, content, background_color, duration,
+  SELECT id, type, mode, title, content, background_color, duration,
          media_path, media_options, position, created_at, updated_at
   FROM slides WHERE id = ?
 `;
 
 export interface CreateSlideInput {
   type: SlideType;
+  mode?: SignageMode;
   title?: string;
   content?: string;
   backgroundColor?: string;
@@ -39,8 +50,15 @@ export interface UpdateSlideInput {
   mediaOptions?: MediaOptions | null;
 }
 
-export function listSlides(): Slide[] {
-  const rows = getDatabase().prepare(SELECT_ALL).all() as SlideRow[];
+function normalizeMode(mode: unknown): SignageMode {
+  return mode === 'individual' ? 'individual' : 'surround';
+}
+
+export function listSlides(mode?: SignageMode): Slide[] {
+  const db = getDatabase();
+  const rows = mode
+    ? (db.prepare(SELECT_BY_MODE).all(mode) as SlideRow[])
+    : (db.prepare(SELECT_ALL).all() as SlideRow[]);
   return rows.map(rowToSlide);
 }
 
@@ -53,20 +71,23 @@ export function createSlide(input: CreateSlideInput): Slide {
   const db = getDatabase();
   const now = nowEpochSeconds();
   const id = randomUUID();
+  const mode = normalizeMode(input.mode);
 
-  const maxRow = db.prepare('SELECT COALESCE(MAX(position), -1) AS max FROM slides').get() as {
-    max: number;
-  };
+  // signage-mode §3.2.2 — position is unique within the mode, not globally.
+  const maxRow = db
+    .prepare('SELECT COALESCE(MAX(position), -1) AS max FROM slides WHERE mode = ?')
+    .get(mode) as { max: number };
   const position = maxRow.max + 1;
 
   db.prepare(
     `INSERT INTO slides (
-      id, type, title, content, background_color, duration,
+      id, type, mode, title, content, background_color, duration,
       media_path, media_options, position, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.type,
+    mode,
     input.title ?? '',
     input.content ?? '',
     input.backgroundColor ?? '#1a1a2e',
@@ -138,32 +159,43 @@ export function updateSlide(id: string, patch: UpdateSlideInput): Slide | null {
 
 export function deleteSlide(id: string): boolean {
   const db = getDatabase();
+  const existing = getSlide(id);
+  if (!existing) return false;
   const result = db.prepare('DELETE FROM slides WHERE id = ?').run(id);
   if (result.changes === 0) return false;
-  // Compact positions so they remain contiguous.
-  compactPositions();
+  // Compact positions within the affected mode so they remain contiguous.
+  compactPositions(existing.mode);
   eventBus.emit({ type: 'slide.changed', op: 'delete', ids: [id] });
   return true;
 }
 
-export function reorderSlides(orderedIds: string[]): Slide[] {
+export function reorderSlides(mode: SignageMode, orderedIds: string[]): Slide[] {
+  // Design Ref: signage-mode §3.2.2 — reorder is scoped to a single mode.
+  // The ids array must only contain rows whose mode matches; any foreign id
+  // is silently ignored by the WHERE-clause filter.
   const db = getDatabase();
-  const update = db.prepare('UPDATE slides SET position = ?, updated_at = ? WHERE id = ?');
+  const update = db.prepare(
+    'UPDATE slides SET position = ?, updated_at = ? WHERE id = ? AND mode = ?'
+  );
   const tx = db.transaction((ids: string[]) => {
     const now = nowEpochSeconds();
-    ids.forEach((id, idx) => update.run(idx, now, id));
+    ids.forEach((id, idx) => update.run(idx, now, id, mode));
   });
   tx(orderedIds);
   eventBus.emit({ type: 'slide.changed', op: 'reorder', ids: orderedIds });
-  return listSlides();
+  return listSlides(mode);
 }
 
-function compactPositions(): void {
+function compactPositions(mode: SignageMode): void {
   const db = getDatabase();
-  const rows = db.prepare('SELECT id FROM slides ORDER BY position ASC').all() as { id: string }[];
-  const update = db.prepare('UPDATE slides SET position = ? WHERE id = ?');
+  const rows = db
+    .prepare('SELECT id FROM slides WHERE mode = ? ORDER BY position ASC')
+    .all(mode) as { id: string }[];
+  const update = db.prepare(
+    'UPDATE slides SET position = ? WHERE id = ? AND mode = ?'
+  );
   const tx = db.transaction(() => {
-    rows.forEach((row, idx) => update.run(idx, row.id));
+    rows.forEach((row, idx) => update.run(idx, row.id, mode));
   });
   tx();
 }

@@ -1,9 +1,11 @@
-// Design Ref: §4.1 — Typed wrappers for /api/slides.
+// Design Ref: §4.1, signage-mode §3.5.2 — Typed wrappers for /api/slides.
+// `mode` lets list/create/reorder operate within a specific signage mode.
 import { apiFetch } from './client';
-import type { Slide, MediaOptions, SlideType } from '@/types/slide';
+import type { Slide, MediaOptions, SlideType, SignageMode } from '@/types/slide';
 
 export interface CreateSlidePayload {
   type: SlideType;
+  mode?: SignageMode;
   title?: string;
   content?: string;
   backgroundColor?: string;
@@ -15,8 +17,11 @@ export interface CreateSlidePayload {
 export type UpdateSlidePayload = Partial<CreateSlidePayload>;
 
 export const slidesApi = {
-  list: async (): Promise<Slide[]> => {
-    const res = await apiFetch<{ slides: Slide[] }>('/api/slides');
+  list: async (mode?: SignageMode): Promise<Slide[]> => {
+    const path = mode
+      ? `/api/slides?mode=${encodeURIComponent(mode)}`
+      : '/api/slides';
+    const res = await apiFetch<{ slides: Slide[] }>(path);
     return res.slides;
   },
 
@@ -40,10 +45,10 @@ export const slidesApi = {
     await apiFetch<void>(`/api/slides/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
-  reorder: async (orderedIds: string[]): Promise<Slide[]> => {
+  reorder: async (mode: SignageMode, orderedIds: string[]): Promise<Slide[]> => {
     const res = await apiFetch<{ slides: Slide[] }>('/api/slides/reorder', {
       method: 'POST',
-      body: { orderedIds },
+      body: { mode, orderedIds },
     });
     return res.slides;
   },
