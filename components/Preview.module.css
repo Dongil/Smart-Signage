@@ -1,7 +1,8 @@
+/* Design Ref: ui-redesign §3.3.5 — preview now fills the RightPanel column
+ * (width 640px) instead of being a fixed-width sidebar itself.
+ */
 .preview {
-  width: 320px;
   padding: 16px;
-  border-left: 1px solid #333;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -16,18 +17,15 @@
 
 .heading {
   flex-shrink: 0;
-}
-
-.heading {
   font-size: 14px;
   color: #eee;
   font-weight: 600;
 }
 
 .status {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
   font-weight: 500;
 }
 
@@ -57,7 +55,8 @@
   left: 0;
   width: var(--canvas-w, 5760px);
   height: var(--canvas-h, 1080px);
-  transform: scale(0.05);
+  /* ui-redesign §3.3.5 — scale recalculated for 640px panel (608 effective) */
+  transform: scale(0.1056);
   transform-origin: top left;
   pointer-events: none;
   z-index: 10;
@@ -72,7 +71,7 @@
 .scaler {
   width: var(--canvas-w, 5760px);
   height: var(--canvas-h, 1080px);
-  transform: scale(0.05);
+  transform: scale(0.1056);
   transform-origin: top left;
   display: flex;
   align-items: center;
@@ -86,26 +85,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
-  font-size: 12px;
+  color: #666;
+  font-size: 13px;
   text-align: center;
+  padding: 0 24px;
 }
 
 .meta {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: #888;
   padding: 0 4px;
-}
-
-.hint {
-  margin: 0;
-  padding: 6px 8px;
-  font-size: 11px;
-  color: #ffb84d;
-  background: rgba(255, 184, 77, 0.1);
-  border: 1px solid rgba(255, 184, 77, 0.25);
-  border-radius: 4px;
-  text-align: center;
 }

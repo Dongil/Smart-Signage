@@ -1,0 +1,9 @@
+.right {
+  width: 640px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #333;
+  overflow-y: auto;
+  background: #0a0e1a;
+}

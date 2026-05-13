@@ -1,6 +1,11 @@
 // Design Ref: §2.M4, §1.3 — Preview reflects the server-authoritative
 // PlaybackState (synced via SSE). Signage liveness flips automatically
 // when the host's BrowserWindow shows or hides.
+//
+// ui-redesign §3.3.5 — In v1.3 the right column is a RightPanel that owns
+// Preview + PlaybackControls + OperationOptionsPanel as siblings. Preview
+// no longer renders the resolution select (moved to OperationOptionsPanel)
+// or the playback controls (now a sibling).
 
 'use client';
 
@@ -8,8 +13,6 @@ import { useEffect, useState } from 'react';
 import { useSignageStore } from '@/store/useSignageStore';
 import { usePlaybackStore } from '@/store/usePlaybackStore';
 import RendererFactory from './renderers/RendererFactory';
-import PlaybackControls from './PlaybackControls';
-import ResolutionSelect from './ResolutionSelect';
 import styles from './Preview.module.css';
 
 export default function Preview() {
@@ -43,10 +46,9 @@ export default function Preview() {
     : '"원격 사이니지에 표시"를 눌러 호스트의 사이니지를 켜세요';
 
   return (
-    <aside className={styles.preview}>
+    <div className={styles.preview}>
       <div className={styles.header}>
         <h3 className={styles.heading}>사이니지</h3>
-        <ResolutionSelect />
         <span className={`${styles.status} ${liveClass}`}>{liveLabel}</span>
       </div>
 
@@ -72,13 +74,12 @@ export default function Preview() {
             </span>
             <span>{currentSlide.duration}초</span>
           </div>
-          <PlaybackControls />
         </>
       ) : (
         <div className={styles.screenEmpty}>
           <p>슬라이드를 추가하세요</p>
         </div>
       )}
-    </aside>
+    </div>
   );
 }

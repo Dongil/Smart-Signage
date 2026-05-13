@@ -1,8 +1,9 @@
-// Design Ref: signage-resolution §3.2.1 — single hook to read canvas dimensions.
-// All TS consumers (RichTextEditor, HwpxPreviewSlide, …) read through this hook
-// instead of importing the store directly, so the source of truth stays in one place.
+// Design Ref: signage-resolution §3.2.1, ui-redesign §3.6 — single hook to
+// read canvas dimensions. Backed by the generic options registry — the
+// signage.resolution entry stores {w, h}, and useOption supplies the default
+// when the store hasn't yet hydrated.
 
-import { useSignageStore } from '@/store/useSignageStore';
+import { useOption } from './useOption';
 
 export interface DisplayMetrics {
   w: number;
@@ -12,7 +13,7 @@ export interface DisplayMetrics {
 }
 
 export function useDisplayMetrics(): DisplayMetrics {
-  const res = useSignageStore((s) => s.resolution);
+  const res = useOption<{ w: number; h: number }>('signage.resolution');
   return {
     w: res.w,
     h: res.h,

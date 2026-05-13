@@ -1,18 +1,20 @@
 // Design Ref: §2.M4, §1.3 — Zustand store as a server-mirror.
 // All mutations go through the HTTP API; SSE re-hydrates after any change.
 // The store no longer owns playback state (see usePlaybackStore).
+//
+// ui-redesign §3.1.3 — operation options live in a generic Record<key, value>
+// keyed by OPTION_REGISTRY entries. Callers read via useOption<T>(key);
+// writers use setOption(key, value). This supersedes the older
+// resolution-specific API.
 
 import { create } from 'zustand';
 import { slidesApi, type CreateSlidePayload, type UpdateSlidePayload } from '@/lib/api/slides';
 import { settingsApi } from '@/lib/api/settings';
+import { OPTION_REGISTRY, isRegistryKey, getOptionDefault } from '@/lib/options/registry';
 import type { Slide } from '@/types/slide';
 
 export type { Slide };
 
-// Design Ref: signage-resolution §3.1.2 — canvas resolution constants
-export const DEFAULT_RESOLUTION = { w: 5760, h: 1080 } as const;
-export const ALLOWED_HEIGHTS = [1080, 1200] as const;
-export type AllowedHeight = (typeof ALLOWED_HEIGHTS)[number];
 export interface SignageResolution {
   w: number;
   h: number;
@@ -24,19 +26,28 @@ interface SignageState {
   error: string | null;
   /** Index of the slide currently selected in the editor (UI-only). */
   editingIndex: number;
-  /** Operational signage canvas resolution (server-mirrored). */
-  resolution: SignageResolution;
+  /** All operational options keyed by registry key. Hydrated from SQLite. */
+  options: Record<string, unknown>;
 
   hydrate: () => Promise<void>;
-  hydrateSettings: () => Promise<void>;
+  hydrateAllOptions: () => Promise<void>;
   addSlide: (payload: CreateSlidePayload) => Promise<Slide>;
   updateSlide: (id: string, patch: UpdateSlidePayload) => Promise<Slide | null>;
   deleteSlide: (id: string) => Promise<void>;
   reorderSlides: (orderedIds: string[]) => Promise<void>;
   setEditingIndex: (index: number) => void;
-  setResolution: (h: AllowedHeight) => Promise<void>;
+  setOption: (key: string, value: unknown) => Promise<void>;
   applySseHydrate: (slides: Slide[]) => void;
-  applySettingsSse: () => Promise<void>;
+  applyOptionSse: (key: string) => Promise<void>;
+}
+
+function initialOptions(): Record<string, unknown> {
+  // Pre-seed with registry defaults so first paint never sees undefined.
+  const out: Record<string, unknown> = {};
+  for (const schema of OPTION_REGISTRY) {
+    out[schema.key] = schema.default;
+  }
+  return out;
 }
 
 export const useSignageStore = create<SignageState>((set, get) => ({
@@ -44,7 +55,7 @@ export const useSignageStore = create<SignageState>((set, get) => ({
   loading: false,
   error: null,
   editingIndex: 0,
-  resolution: { ...DEFAULT_RESOLUTION },
+  options: initialOptions(),
 
   hydrate: async () => {
     set({ loading: true, error: null });
@@ -60,38 +71,46 @@ export const useSignageStore = create<SignageState>((set, get) => ({
     }
   },
 
-  hydrateSettings: async () => {
-    // Design Ref: signage-resolution §3.1.2 — load operational resolution from server
-    try {
-      const { value } = await settingsApi.get<SignageResolution>('signage.resolution');
-      if (
-        value &&
-        typeof value.w === 'number' &&
-        typeof value.h === 'number' &&
-        (ALLOWED_HEIGHTS as readonly number[]).includes(value.h)
-      ) {
-        set({ resolution: value });
+  hydrateAllOptions: async () => {
+    // ui-redesign §3.1.3 — iterate registry so adding an option requires no
+    // change here. Missing keys stay at their registry default.
+    const next: Record<string, unknown> = { ...get().options };
+    for (const schema of OPTION_REGISTRY) {
+      try {
+        const { value } = await settingsApi.get<unknown>(schema.key);
+        next[schema.key] = value;
+      } catch {
+        next[schema.key] = schema.default;
       }
-    } catch {
-      // 404 (seed missing) or network — keep default; do not surface as error
     }
+    set({ options: next });
   },
 
-  setResolution: async (h) => {
-    if (!(ALLOWED_HEIGHTS as readonly number[]).includes(h)) return;
-    const prev = get().resolution;
-    const next: SignageResolution = { w: 5760, h };
-    set({ resolution: next });
+  setOption: async (key, value) => {
+    if (!isRegistryKey(key)) return;
+    const prevOptions = get().options;
+    set({ options: { ...prevOptions, [key]: value } });
     try {
-      await settingsApi.set('signage.resolution', next);
+      await settingsApi.set(key, value);
     } catch (e) {
-      set({ resolution: prev, error: e instanceof Error ? e.message : 'set-resolution-failed' });
+      // Roll back to the value we had before this write.
+      const fallback = prevOptions[key] ?? getOptionDefault(key);
+      set({
+        options: { ...get().options, [key]: fallback },
+        error: e instanceof Error ? e.message : 'set-option-failed',
+      });
       throw e;
     }
   },
 
-  applySettingsSse: async () => {
-    await get().hydrateSettings();
+  applyOptionSse: async (key) => {
+    if (!isRegistryKey(key)) return;
+    try {
+      const { value } = await settingsApi.get<unknown>(key);
+      set((s) => ({ options: { ...s.options, [key]: value } }));
+    } catch {
+      // server returned 404 / network blip — keep current value
+    }
   },
 
   addSlide: async (payload) => {

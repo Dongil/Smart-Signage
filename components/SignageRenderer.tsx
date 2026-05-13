@@ -4,15 +4,23 @@
 //   - usePlaybackStore           (server PlaybackState mirror via SSE)
 // Auto-advance behavior moves to Module 5 (PlaybackControls). For now,
 // we honor isPlaying + currentIndex from the server so SSE control already works.
+//
+// ui-redesign §3.5.5 (revised) — true crossfade. Two stacked layers: the
+// committed slide sits underneath at full opacity, and an incoming slide
+// fades 0→1 above it. Because the committed slide is fully opaque the
+// whole time, no black background ever shows between slides. After the
+// transition duration we promote the incoming slide to "committed" and
+// unmount the top layer. With transitionSec=0 we just swap, no layering.
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSignageStore } from '@/store/useSignageStore';
 import { usePlaybackStore } from '@/store/usePlaybackStore';
 import { useSignageLiveness } from '@/hooks/useSignageLiveness';
-import BaseRenderer from './renderers/BaseRenderer';
+import { useOption } from '@/hooks/useOption';
 import RendererFactory from './renderers/RendererFactory';
+import type { Slide } from '@/types/slide';
 import styles from './SignageRenderer.module.css';
 
 export default function SignageRenderer() {
@@ -22,9 +30,15 @@ export default function SignageRenderer() {
   const dispatch = usePlaybackStore((s) => s.dispatch);
   const currentIndex = usePlaybackStore((s) => s.currentIndex);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
+  const transitionSec = useOption<number>('slide.transitionSec');
 
-  const [isVisible, setIsVisible] = useState(true);
+  const target: Slide | null = slides[currentIndex] ?? null;
+
+  const [committed, setCommitted] = useState<Slide | null>(target);
+  const [incoming, setIncoming] = useState<Slide | null>(null);
+  const [incomingVisible, setIncomingVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const promoteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Tells the editor "I'm here". Closing this window stops the heartbeat
   // and the editor flips to "출력 없음" within ~3 seconds (or instantly via
@@ -36,12 +50,61 @@ export default function SignageRenderer() {
     hydratePlayback();
   }, [hydrateSlides, hydratePlayback]);
 
-  // Local fade animation when slide changes.
+  // Crossfade controller — runs whenever the target slide or transitionSec change.
   useEffect(() => {
-    setIsVisible(false);
-    const t = setTimeout(() => setIsVisible(true), 250);
-    return () => clearTimeout(t);
-  }, [currentIndex]);
+    if (!target) {
+      setCommitted(null);
+      setIncoming(null);
+      setIncomingVisible(false);
+      return;
+    }
+    // First render / initial assignment.
+    if (committed === null) {
+      setCommitted(target);
+      return;
+    }
+    if (target === committed) return;
+    if (transitionSec <= 0) {
+      // CUT — instant swap, no transition layer.
+      setCommitted(target);
+      setIncoming(null);
+      setIncomingVisible(false);
+      return;
+    }
+
+    // Start crossfade: mount incoming above committed at opacity 0, then on
+    // the next two animation frames flip to opacity 1 so the CSS transition
+    // engages. (One rAF is sometimes enough but two is robust across browsers
+    // when the element was just mounted.)
+    setIncoming(target);
+    setIncomingVisible(false);
+
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setIncomingVisible(true));
+    });
+
+    // After the fade duration plus a small buffer, promote incoming and drop
+    // the top layer. The buffer compensates for the 2-frame setup delay so
+    // the swap happens after the eye has seen a full fade-in.
+    const promoteMs = Math.round(transitionSec * 1000) + 60;
+    if (promoteRef.current) clearTimeout(promoteRef.current);
+    promoteRef.current = setTimeout(() => {
+      setCommitted(target);
+      setIncoming(null);
+      setIncomingVisible(false);
+    }, promoteMs);
+
+    return () => {
+      if (raf1) cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+      if (promoteRef.current) {
+        clearTimeout(promoteRef.current);
+        promoteRef.current = null;
+      }
+    };
+  }, [target, transitionSec, committed]);
 
   // Auto-advance — only the signage device drives this so the timer fires
   // exactly once per slide regardless of how many remote viewers are connected.
@@ -66,13 +129,11 @@ export default function SignageRenderer() {
     };
   }, [isPlaying, currentIndex, slides, dispatch]);
 
-  const handleVideoEnd = () => {
+  const handleVideoEnd = useCallback(() => {
     dispatch({ action: 'next' }).catch(() => undefined);
-  };
+  }, [dispatch]);
 
-  const currentSlide = slides[currentIndex];
-
-  if (!currentSlide) {
+  if (!committed) {
     return (
       <div className={styles.container}>
         <p className={styles.waiting}>사이니지 대기 중...</p>
@@ -80,11 +141,34 @@ export default function SignageRenderer() {
     );
   }
 
+  const transitionCss =
+    transitionSec > 0 ? `opacity ${transitionSec}s ease-in-out` : 'none';
+
   return (
     <div className={styles.container}>
-      <BaseRenderer slide={currentSlide} isVisible={isVisible}>
-        <RendererFactory slide={currentSlide} onVideoEnd={handleVideoEnd} />
-      </BaseRenderer>
+      <div
+        className={styles.layer}
+        style={{
+          backgroundColor: committed.backgroundColor,
+          opacity: 1,
+          zIndex: 0,
+        }}
+      >
+        <RendererFactory slide={committed} onVideoEnd={handleVideoEnd} />
+      </div>
+      {incoming && (
+        <div
+          className={styles.layer}
+          style={{
+            backgroundColor: incoming.backgroundColor,
+            opacity: incomingVisible ? 1 : 0,
+            transition: transitionCss,
+            zIndex: 1,
+          }}
+        >
+          <RendererFactory slide={incoming} onVideoEnd={handleVideoEnd} />
+        </div>
+      )}
     </div>
   );
 }

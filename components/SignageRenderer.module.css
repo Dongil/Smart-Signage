@@ -1,8 +1,25 @@
+/* Design Ref: §2.M4 — signage container.
+ * ui-redesign §3.5.5 — stacked layers for true crossfade between slides.
+ * The bottom layer is the committed slide; an incoming layer mounts on top
+ * during a transition and fades 0→1 in front of it. Because the bottom
+ * stays fully opaque, no black background is ever visible between slides.
+ */
 .container {
   width: 100vw;
   height: 100vh;
   background: #000;
   overflow: hidden;
+  position: relative;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  will-change: opacity;
 }
 
 .waiting {

@@ -39,6 +39,7 @@ export function usePlaybackKeys(opts: UsePlaybackKeysOptions = {}) {
   const enabled = opts.enabled ?? true;
   const dispatch = usePlaybackStore((s) => s.dispatch);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
+  const signageActive = usePlaybackStore((s) => s.signageActive);
 
   useEffect(() => {
     if (!enabled) return;
@@ -46,6 +47,9 @@ export function usePlaybackKeys(opts: UsePlaybackKeysOptions = {}) {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTypingTarget(e.target)) return;
+      // ui-redesign §3.4 — shortcuts mirror the visible PlaybackControls
+      // state, so they are silent when the controls would be disabled.
+      if (!signageActive) return;
 
       let cmd: ControlAction | null = null;
       if (NEXT_KEYS.has(e.key)) cmd = { action: 'next' };
@@ -61,5 +65,5 @@ export function usePlaybackKeys(opts: UsePlaybackKeysOptions = {}) {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [enabled, dispatch, isPlaying]);
+  }, [enabled, dispatch, isPlaying, signageActive]);
 }

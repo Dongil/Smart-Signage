@@ -1,0 +1,19 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0 16px;
+  border-top: 1px solid #2a2f45;
+}
+
+.heading {
+  margin: 0 0 6px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #eee;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+}

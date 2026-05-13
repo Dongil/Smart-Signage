@@ -10,7 +10,7 @@ import { installRendererLogger } from '@/lib/logger';
 import Toolbar from '@/components/Toolbar';
 import SlideList from '@/components/SlideList';
 import SlideEditor from '@/components/SlideEditor';
-import Preview from '@/components/Preview';
+import RightPanel from '@/components/RightPanel';
 import SseBridge from '@/components/SseBridge';
 import LegacyMigrationGuard from '@/components/LegacyMigrationGuard';
 import DisplayCssVarBridge from '@/components/DisplayCssVarBridge';
@@ -18,7 +18,7 @@ import styles from './page.module.css';
 
 export default function EditorPage() {
   const hydrateSlides = useSignageStore((s) => s.hydrate);
-  const hydrateSettings = useSignageStore((s) => s.hydrateSettings);
+  const hydrateAllOptions = useSignageStore((s) => s.hydrateAllOptions);
   const hydratePlayback = usePlaybackStore((s) => s.hydrate);
   usePlaybackKeys();
   // Only Electron hosts will actually act on these events; remote browsers
@@ -29,9 +29,9 @@ export default function EditorPage() {
     installRendererLogger();
     hydrateSlides();
     hydratePlayback();
-    // Design Ref: signage-resolution §3.5.4 — load operational resolution on boot
-    hydrateSettings();
-  }, [hydrateSlides, hydratePlayback, hydrateSettings]);
+    // Design Ref: ui-redesign §3.1.3 — load all registry options on boot
+    hydrateAllOptions();
+  }, [hydrateSlides, hydratePlayback, hydrateAllOptions]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -53,7 +53,7 @@ export default function EditorPage() {
       <div className={styles.body}>
         <SlideList />
         <SlideEditor />
-        <Preview />
+        <RightPanel />
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import { useSignageStore } from '@/store/useSignageStore';
 export default function SignagePage() {
   const [isElectron, setIsElectron] = useState<boolean | null>(null);
   const hydrateSlides = useSignageStore((s) => s.hydrate);
-  const hydrateSettings = useSignageStore((s) => s.hydrateSettings);
+  const hydrateAllOptions = useSignageStore((s) => s.hydrateAllOptions);
 
   usePlaybackKeys();
 
@@ -29,8 +29,8 @@ export default function SignagePage() {
     setIsElectron(typeof window !== 'undefined' && !!window.electronAPI);
     // Design Ref: signage-resolution §3.5.4 — signage page also needs slides + resolution
     hydrateSlides();
-    hydrateSettings();
-  }, [hydrateSlides, hydrateSettings]);
+    hydrateAllOptions();
+  }, [hydrateSlides, hydrateAllOptions]);
 
   useEffect(() => {
     if (isElectron !== true) return;

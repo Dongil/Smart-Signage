@@ -1,0 +1,95 @@
+.row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1f253a;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.labelCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: 13px;
+  color: #ddd;
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 11px;
+  color: #777;
+}
+
+.inputCol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.numberGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.slider {
+  flex: 1;
+  accent-color: #4a9eff;
+  min-width: 120px;
+}
+
+.numberInput {
+  width: 72px;
+  background: #16213e;
+  color: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.numberInput:disabled,
+.slider:disabled,
+.select:disabled,
+.checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.unit {
+  font-size: 12px;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.select {
+  background: #16213e;
+  color: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.select:hover:not(:disabled) {
+  border-color: #4a9eff;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #4a9eff;
+  cursor: pointer;
+}

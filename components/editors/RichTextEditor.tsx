@@ -9,6 +9,7 @@ import FontFamily from '@tiptap/extension-font-family';
 import Underline from '@tiptap/extension-underline';
 import { FontSizeTextStyle } from './fontSizeExtension';
 import { useDisplayMetrics } from '@/hooks/useDisplayMetrics';
+import { useOption } from '@/hooks/useOption';
 import styles from './RichTextEditor.module.css';
 
 // Design Ref: signage-resolution §3.3.2 — canvas dims sourced from store
@@ -40,6 +41,7 @@ interface Props {
 
 export default function RichTextEditor({ slideId, content, backgroundColor, onChange }: Props) {
   const { w: CANVAS_W, h: CANVAS_H } = useDisplayMetrics();
+  const slidePadding = useOption<number>('slide.padding');
   const prevContentRef = useRef(content);
   const prevSlideIdRef = useRef(slideId);
   const prevCanvasHRef = useRef(CANVAS_H);
@@ -49,14 +51,15 @@ export default function RichTextEditor({ slideId, content, backgroundColor, onCh
   // / getAttributes(...) reads reflect the new slide's marks.
   const [, setRenderTick] = useState(0);
 
-  // Design Ref: signage-resolution §3.4.2 — font sizes rebuilt per current height
+  // Design Ref: signage-resolution §3.4.2, ui-redesign §3.5.3 — font sizes
+  // rebuilt when height OR user padding changes.
   const FONT_SIZES = useMemo(
     () =>
-      buildFontData(CANVAS_H).map(({ n, fs }) => ({
+      buildFontData(CANVAS_H, slidePadding).map(({ n, fs }) => ({
         value: `${fs}px`,
         label: `${fs}px (${n} Line${n > 1 ? 's' : ''})`,
       })),
-    [CANVAS_H]
+    [CANVAS_H, slidePadding]
   );
 
   const editor = useEditor({
@@ -124,9 +127,9 @@ export default function RichTextEditor({ slideId, content, backgroundColor, onCh
     const composing = (editor.view as unknown as { composing?: boolean }).composing === true;
     if (composing) return;
 
-    const prevFonts = buildFontData(prevH);
-    const newFonts = buildFontData(CANVAS_H);
-    const currentSize = detectFontFromHTML(editor.getHTML(), prevH);
+    const prevFonts = buildFontData(prevH, slidePadding);
+    const newFonts = buildFontData(CANVAS_H, slidePadding);
+    const currentSize = detectFontFromHTML(editor.getHTML(), prevH, slidePadding);
     const bucket = prevFonts.find((f) => f.fs === currentSize);
     const newSize = bucket ? newFonts.find((f) => f.n === bucket.n)?.fs : undefined;
 
@@ -163,8 +166,8 @@ export default function RichTextEditor({ slideId, content, backgroundColor, onCh
     return () => window.removeEventListener('resize', updateScale);
   }, [updateScale]);
 
-  const currentFontSize = editor ? detectFontFromHTML(editor.getHTML(), CANVAS_H) : 68;
-  const verticalPadding = calcVerticalPadding(currentFontSize, CANVAS_H);
+  const currentFontSize = editor ? detectFontFromHTML(editor.getHTML(), CANVAS_H, slidePadding) : 68;
+  const verticalPadding = calcVerticalPadding(currentFontSize, CANVAS_H, slidePadding);
 
   // Apply dynamic vertical padding to .tiptap element
   useEffect(() => {
