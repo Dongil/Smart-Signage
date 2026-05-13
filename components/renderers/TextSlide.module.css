@@ -1,6 +1,7 @@
 .container {
-  width: 5760px;
-  height: 1080px;
+  /* Design Ref: signage-resolution §3.3.1 — canvas dims from CSS vars */
+  width: var(--canvas-w, 5760px);
+  height: var(--canvas-h, 1080px);
   /* vertical padding set dynamically via inline style based on font size */
   padding-left: 80px;
   padding-right: 80px;

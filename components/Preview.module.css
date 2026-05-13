@@ -11,6 +11,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
+}
+
+.heading {
+  flex-shrink: 0;
 }
 
 .heading {
@@ -36,8 +41,9 @@
   color: #888;
 }
 
+/* Design Ref: signage-resolution §3.3.1 — canvas dims from CSS vars */
 .screen {
-  aspect-ratio: 16 / 3;
+  aspect-ratio: var(--canvas-aspect, 16 / 3);
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid #333;
@@ -49,8 +55,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 5760px;
-  height: 1080px;
+  width: var(--canvas-w, 5760px);
+  height: var(--canvas-h, 1080px);
   transform: scale(0.05);
   transform-origin: top left;
   pointer-events: none;
@@ -64,8 +70,8 @@
 }
 
 .scaler {
-  width: 5760px;
-  height: 1080px;
+  width: var(--canvas-w, 5760px);
+  height: var(--canvas-h, 1080px);
   transform: scale(0.05);
   transform-origin: top left;
   display: flex;
@@ -74,7 +80,7 @@
 }
 
 .screenEmpty {
-  aspect-ratio: 16 / 3;
+  aspect-ratio: var(--canvas-aspect, 16 / 3);
   border-radius: 6px;
   border: 1px dashed #333;
   display: flex;

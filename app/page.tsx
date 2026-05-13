@@ -13,10 +13,12 @@ import SlideEditor from '@/components/SlideEditor';
 import Preview from '@/components/Preview';
 import SseBridge from '@/components/SseBridge';
 import LegacyMigrationGuard from '@/components/LegacyMigrationGuard';
+import DisplayCssVarBridge from '@/components/DisplayCssVarBridge';
 import styles from './page.module.css';
 
 export default function EditorPage() {
   const hydrateSlides = useSignageStore((s) => s.hydrate);
+  const hydrateSettings = useSignageStore((s) => s.hydrateSettings);
   const hydratePlayback = usePlaybackStore((s) => s.hydrate);
   usePlaybackKeys();
   // Only Electron hosts will actually act on these events; remote browsers
@@ -27,7 +29,9 @@ export default function EditorPage() {
     installRendererLogger();
     hydrateSlides();
     hydratePlayback();
-  }, [hydrateSlides, hydratePlayback]);
+    // Design Ref: signage-resolution §3.5.4 — load operational resolution on boot
+    hydrateSettings();
+  }, [hydrateSlides, hydratePlayback, hydrateSettings]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,6 +46,7 @@ export default function EditorPage() {
 
   return (
     <div className={styles.layout}>
+      <DisplayCssVarBridge />
       <SseBridge />
       <LegacyMigrationGuard />
       <Toolbar />

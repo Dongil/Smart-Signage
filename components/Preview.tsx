@@ -9,6 +9,7 @@ import { useSignageStore } from '@/store/useSignageStore';
 import { usePlaybackStore } from '@/store/usePlaybackStore';
 import RendererFactory from './renderers/RendererFactory';
 import PlaybackControls from './PlaybackControls';
+import ResolutionSelect from './ResolutionSelect';
 import styles from './Preview.module.css';
 
 export default function Preview() {
@@ -45,6 +46,7 @@ export default function Preview() {
     <aside className={styles.preview}>
       <div className={styles.header}>
         <h3 className={styles.heading}>사이니지</h3>
+        <ResolutionSelect />
         <span className={`${styles.status} ${liveClass}`}>{liveLabel}</span>
       </div>
 

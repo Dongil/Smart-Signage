@@ -5,8 +5,10 @@ import '@/components/templates/registerAll';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SseBridge from '@/components/SseBridge';
 import SignageRenderer from '@/components/SignageRenderer';
+import DisplayCssVarBridge from '@/components/DisplayCssVarBridge';
 import { usePlaybackKeys } from '@/hooks/usePlaybackKeys';
 import { installRendererLogger } from '@/lib/logger';
+import { useSignageStore } from '@/store/useSignageStore';
 
 // /signage is reachable both from the Electron host BrowserWindow (real
 // signage output) and from any LAN browser that types the URL directly.
@@ -17,13 +19,18 @@ import { installRendererLogger } from '@/lib/logger';
 
 export default function SignagePage() {
   const [isElectron, setIsElectron] = useState<boolean | null>(null);
+  const hydrateSlides = useSignageStore((s) => s.hydrate);
+  const hydrateSettings = useSignageStore((s) => s.hydrateSettings);
 
   usePlaybackKeys();
 
   useEffect(() => {
     installRendererLogger();
     setIsElectron(typeof window !== 'undefined' && !!window.electronAPI);
-  }, []);
+    // Design Ref: signage-resolution §3.5.4 — signage page also needs slides + resolution
+    hydrateSlides();
+    hydrateSettings();
+  }, [hydrateSlides, hydrateSettings]);
 
   useEffect(() => {
     if (isElectron !== true) return;
@@ -77,6 +84,7 @@ export default function SignagePage() {
     <ErrorBoundary
       fallback={<FullScreenMessage>사이니지 렌더링 오류</FullScreenMessage>}
     >
+      <DisplayCssVarBridge />
       <SseBridge />
       <SignageRenderer />
     </ErrorBoundary>

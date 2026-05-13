@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
@@ -8,10 +8,10 @@ import { Color } from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import Underline from '@tiptap/extension-underline';
 import { FontSizeTextStyle } from './fontSizeExtension';
+import { useDisplayMetrics } from '@/hooks/useDisplayMetrics';
 import styles from './RichTextEditor.module.css';
 
-const CANVAS_W = 5760;
-const CANVAS_H = 1080;
+// Design Ref: signage-resolution §3.3.2 — canvas dims sourced from store
 
 const FONT_FAMILIES = [
   { label: '기본', value: 'sans-serif' },
@@ -22,12 +22,7 @@ const FONT_FAMILIES = [
   { label: 'Georgia', value: 'Georgia, serif' },
 ];
 
-import { FONT_DATA, calcVerticalPadding, detectFontSize as detectFontFromHTML } from './paddingUtils';
-
-const FONT_SIZES = FONT_DATA.map(({ n, fs }) => ({
-  value: `${fs}px`,
-  label: `${fs}px (${n} Line${n > 1 ? 's' : ''})`,
-}));
+import { buildFontData, calcVerticalPadding, detectFontSize as detectFontFromHTML } from './paddingUtils';
 
 const COLORS = [
   '#ffffff', '#000000', '#ff0000', '#ff6600', '#ffcc00',
@@ -44,13 +39,25 @@ interface Props {
 }
 
 export default function RichTextEditor({ slideId, content, backgroundColor, onChange }: Props) {
+  const { w: CANVAS_W, h: CANVAS_H } = useDisplayMetrics();
   const prevContentRef = useRef(content);
   const prevSlideIdRef = useRef(slideId);
+  const prevCanvasHRef = useRef(CANVAS_H);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.15);
   // Forces re-render after setContent so the toolbar's editor.isActive(...)
   // / getAttributes(...) reads reflect the new slide's marks.
   const [, setRenderTick] = useState(0);
+
+  // Design Ref: signage-resolution §3.4.2 — font sizes rebuilt per current height
+  const FONT_SIZES = useMemo(
+    () =>
+      buildFontData(CANVAS_H).map(({ n, fs }) => ({
+        value: `${fs}px`,
+        label: `${fs}px (${n} Line${n > 1 ? 's' : ''})`,
+      })),
+    [CANVAS_H]
+  );
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -105,6 +112,40 @@ export default function RichTextEditor({ slideId, content, backgroundColor, onCh
     setRenderTick((n) => n + 1);
   }, [slideId, content, editor]);
 
+  // Design Ref: signage-resolution §3.4.3 — remap fontSize when canvas height
+  // changes. Maps the current size to the same "Line bucket" in the new font
+  // table (e.g. "2 Lines @ 1080" → "2 Lines @ 1200"). Skips during IME
+  // composition to avoid breaking Korean input.
+  useEffect(() => {
+    if (!editor) return;
+    const prevH = prevCanvasHRef.current;
+    if (prevH === CANVAS_H) return;
+
+    const composing = (editor.view as unknown as { composing?: boolean }).composing === true;
+    if (composing) return;
+
+    const prevFonts = buildFontData(prevH);
+    const newFonts = buildFontData(CANVAS_H);
+    const currentSize = detectFontFromHTML(editor.getHTML(), prevH);
+    const bucket = prevFonts.find((f) => f.fs === currentSize);
+    const newSize = bucket ? newFonts.find((f) => f.n === bucket.n)?.fs : undefined;
+
+    if (newSize) {
+      const textStyleType = editor.view.state.schema.marks.textStyle;
+      if (textStyleType) {
+        if (!editor.isEmpty) {
+          editor.chain().focus().selectAll().setMark('textStyle', { fontSize: `${newSize}px` }).run();
+          editor.commands.focus('end');
+        }
+        const view = editor.view;
+        const tr = view.state.tr.setStoredMarks([textStyleType.create({ fontSize: `${newSize}px` })]);
+        view.dispatch(tr);
+      }
+    }
+    prevCanvasHRef.current = CANVAS_H;
+    setRenderTick((n) => n + 1);
+  }, [CANVAS_H, editor]);
+
   // Calculate scale based on container width
   const updateScale = useCallback(() => {
     if (wrapperRef.current) {
@@ -113,17 +154,17 @@ export default function RichTextEditor({ slideId, content, backgroundColor, onCh
       const containerWidth = parent ? parent.clientWidth : wrapperRef.current.clientWidth;
       setScale(containerWidth / CANVAS_W);
     }
-  }, []);
+  }, [CANVAS_W]);
 
   useEffect(() => {
-    // Delay initial measurement to ensure layout is complete
+    // Delay initial measurement to ensure layout is complete + re-run on resolution change
     requestAnimationFrame(() => requestAnimationFrame(updateScale));
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
   }, [updateScale]);
 
-  const currentFontSize = editor ? detectFontFromHTML(editor.getHTML()) : 68;
-  const verticalPadding = calcVerticalPadding(currentFontSize);
+  const currentFontSize = editor ? detectFontFromHTML(editor.getHTML(), CANVAS_H) : 68;
+  const verticalPadding = calcVerticalPadding(currentFontSize, CANVAS_H);
 
   // Apply dynamic vertical padding to .tiptap element
   useEffect(() => {
@@ -259,7 +300,7 @@ export default function RichTextEditor({ slideId, content, backgroundColor, onCh
         </div>
       </div>
 
-      {/* WYSIWYG Canvas — 5760x1080 scaled to editor panel width */}
+      {/* Design Ref: signage-resolution §3.3.2 — canvas scaled to editor panel width */}
       <div
         className={styles.canvasWrapper}
         style={{ height: CANVAS_H * scale, backgroundColor: backgroundColor ?? '#1a1a2e' }}

@@ -13,6 +13,7 @@ import type { ServerEvent } from '@/lib/api/sse';
 
 export default function SseBridge() {
   const applySlides = useSignageStore((s) => s.applySseHydrate);
+  const applySettings = useSignageStore((s) => s.applySettingsSse);
   const applyControl = usePlaybackStore((s) => s.applyServerState);
   const refreshDevice = useDeviceStore((s) => s.applyEvent);
 
@@ -33,11 +34,15 @@ export default function SseBridge() {
           refreshDevice(event.deviceId).catch(() => undefined);
           break;
         case 'settings.changed':
-          // Module 5 will handle this when needed.
+          // Design Ref: signage-resolution §3.5.3 — re-fetch settings on change.
+          // Server is source of truth; broadcasts hit initiator + observers alike.
+          if (event.key === 'signage.resolution') {
+            applySettings().catch(() => undefined);
+          }
           break;
       }
     },
-    [applySlides, applyControl, refreshDevice]
+    [applySlides, applySettings, applyControl, refreshDevice]
   );
 
   useSseSubscribe(handler);

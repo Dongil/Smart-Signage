@@ -4,9 +4,19 @@
 
 import { create } from 'zustand';
 import { slidesApi, type CreateSlidePayload, type UpdateSlidePayload } from '@/lib/api/slides';
+import { settingsApi } from '@/lib/api/settings';
 import type { Slide } from '@/types/slide';
 
 export type { Slide };
+
+// Design Ref: signage-resolution §3.1.2 — canvas resolution constants
+export const DEFAULT_RESOLUTION = { w: 5760, h: 1080 } as const;
+export const ALLOWED_HEIGHTS = [1080, 1200] as const;
+export type AllowedHeight = (typeof ALLOWED_HEIGHTS)[number];
+export interface SignageResolution {
+  w: number;
+  h: number;
+}
 
 interface SignageState {
   slides: Slide[];
@@ -14,14 +24,19 @@ interface SignageState {
   error: string | null;
   /** Index of the slide currently selected in the editor (UI-only). */
   editingIndex: number;
+  /** Operational signage canvas resolution (server-mirrored). */
+  resolution: SignageResolution;
 
   hydrate: () => Promise<void>;
+  hydrateSettings: () => Promise<void>;
   addSlide: (payload: CreateSlidePayload) => Promise<Slide>;
   updateSlide: (id: string, patch: UpdateSlidePayload) => Promise<Slide | null>;
   deleteSlide: (id: string) => Promise<void>;
   reorderSlides: (orderedIds: string[]) => Promise<void>;
   setEditingIndex: (index: number) => void;
+  setResolution: (h: AllowedHeight) => Promise<void>;
   applySseHydrate: (slides: Slide[]) => void;
+  applySettingsSse: () => Promise<void>;
 }
 
 export const useSignageStore = create<SignageState>((set, get) => ({
@@ -29,6 +44,7 @@ export const useSignageStore = create<SignageState>((set, get) => ({
   loading: false,
   error: null,
   editingIndex: 0,
+  resolution: { ...DEFAULT_RESOLUTION },
 
   hydrate: async () => {
     set({ loading: true, error: null });
@@ -42,6 +58,40 @@ export const useSignageStore = create<SignageState>((set, get) => ({
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : 'fetch-failed' });
     }
+  },
+
+  hydrateSettings: async () => {
+    // Design Ref: signage-resolution §3.1.2 — load operational resolution from server
+    try {
+      const { value } = await settingsApi.get<SignageResolution>('signage.resolution');
+      if (
+        value &&
+        typeof value.w === 'number' &&
+        typeof value.h === 'number' &&
+        (ALLOWED_HEIGHTS as readonly number[]).includes(value.h)
+      ) {
+        set({ resolution: value });
+      }
+    } catch {
+      // 404 (seed missing) or network — keep default; do not surface as error
+    }
+  },
+
+  setResolution: async (h) => {
+    if (!(ALLOWED_HEIGHTS as readonly number[]).includes(h)) return;
+    const prev = get().resolution;
+    const next: SignageResolution = { w: 5760, h };
+    set({ resolution: next });
+    try {
+      await settingsApi.set('signage.resolution', next);
+    } catch (e) {
+      set({ resolution: prev, error: e instanceof Error ? e.message : 'set-resolution-failed' });
+      throw e;
+    }
+  },
+
+  applySettingsSse: async () => {
+    await get().hydrateSettings();
   },
 
   addSlide: async (payload) => {

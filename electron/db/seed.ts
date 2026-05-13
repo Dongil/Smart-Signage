@@ -11,6 +11,8 @@ interface SettingsRow {
 const DEFAULT_SETTINGS: Array<[string, unknown]> = [
   ['playback.defaultDuration', 5],
   ['ui.theme', 'dark'],
+  // Design Ref: signage-resolution §3.1.1 — default canvas resolution
+  ['signage.resolution', { w: 5760, h: 1080 }],
 ];
 
 /**
