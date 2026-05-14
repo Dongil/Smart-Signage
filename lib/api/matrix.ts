@@ -4,6 +4,7 @@
 // hits matrixApi.available() = false — callers must guard with that before use.
 
 import type {
+  MatrixApplyPresetResult,
   MatrixFullState,
   MatrixIpcResult,
   MatrixLogEntry,
@@ -63,6 +64,32 @@ export const matrixApi = {
     invokeResult('matrix:set-host', host, port),
 
   setAutoConnect: (on: boolean) => invokeResult('matrix:set-auto-connect', on),
+
+  // ui-polish §5.3 — preset CRUD + apply
+  addPreset: (name: string, outputs: number[]) =>
+    invokeResult('matrix:add-preset', name, outputs),
+
+  deletePreset: (id: string) => invokeResult('matrix:delete-preset', id),
+
+  applyPreset: async (id: string): Promise<MatrixApplyPresetResult> => {
+    const api = getApi();
+    if (!api) {
+      return { ok: false, appliedCount: 0, failedRoutes: [], error: 'not-electron' };
+    }
+    try {
+      const v = await api.invoke('matrix:apply-preset', id);
+      return (v as MatrixApplyPresetResult) ?? {
+        ok: false, appliedCount: 0, failedRoutes: [], error: 'empty-response',
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        appliedCount: 0,
+        failedRoutes: [],
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
 
   onState: (cb: (state: MatrixFullState) => void): void => {
     getApi()?.on('matrix:state', (s) => cb(s as MatrixFullState));

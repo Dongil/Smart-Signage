@@ -9,7 +9,9 @@ import type {
   ConnectionState,
   MatrixAliases,
   MatrixFullState,
+  MatrixIpcResult,
   MatrixLogEntry,
+  MatrixPreset,
   RouteMap,
 } from '@/types/matrix';
 
@@ -26,6 +28,7 @@ interface MatrixStoreState {
   autoConnect: boolean;
   routes: RouteMap;
   aliases: MatrixAliases;
+  presets: MatrixPreset[];
   log: MatrixLogEntry[];
   selectedInput: number | null;
   error: string | null;
@@ -43,6 +46,11 @@ interface MatrixStoreState {
   applyStatePush: (state: MatrixFullState) => void;
   applyLogPush: (entry: MatrixLogEntry) => void;
   clearError: () => void;
+  // ui-polish §7.1 — preset actions. addPreset returns IpcResult so the modal
+  // can show errors inline (limit-reached, not-connected, etc).
+  addPreset: (name: string, outputs: number[]) => Promise<MatrixIpcResult>;
+  deletePreset: (id: string) => Promise<void>;
+  applyPreset: (id: string) => Promise<void>;
 }
 
 export const useMatrixStore = create<MatrixStoreState>((set, get) => ({
@@ -52,6 +60,7 @@ export const useMatrixStore = create<MatrixStoreState>((set, get) => ({
   autoConnect: false,
   routes: {},
   aliases: { input: [...DEFAULT_ALIASES.input], output: [...DEFAULT_ALIASES.output] },
+  presets: [],
   log: [],
   selectedInput: null,
   error: null,
@@ -67,6 +76,7 @@ export const useMatrixStore = create<MatrixStoreState>((set, get) => ({
         autoConnect: s.autoConnect,
         routes: s.routes,
         aliases: s.aliases,
+        presets: s.presets ?? [],
       });
     }
   },
@@ -129,6 +139,7 @@ export const useMatrixStore = create<MatrixStoreState>((set, get) => ({
       routes: s.routes,
       aliases: s.aliases ?? get().aliases,
       autoConnect: s.autoConnect ?? get().autoConnect,
+      presets: s.presets ?? get().presets,
     }),
 
   applyLogPush: (entry) =>
@@ -137,4 +148,28 @@ export const useMatrixStore = create<MatrixStoreState>((set, get) => ({
     })),
 
   clearError: () => set({ error: null }),
+
+  addPreset: async (name, outputs) => {
+    const r = await matrixApi.addPreset(name, outputs);
+    if (!r.ok) set({ error: r.error });
+    // On success, main broadcasts matrix:state with updated presets list.
+    return r;
+  },
+
+  deletePreset: async (id) => {
+    const r = await matrixApi.deletePreset(id);
+    if (!r.ok) set({ error: r.error });
+  },
+
+  applyPreset: async (id) => {
+    set({ error: null });
+    const r = await matrixApi.applyPreset(id);
+    if (!r.ok) {
+      set({ error: r.error ?? 'apply-failed' });
+      return;
+    }
+    if (r.failedRoutes.length > 0) {
+      set({ error: `${r.failedRoutes.length}/${r.appliedCount + r.failedRoutes.length} 채널 적용 실패` });
+    }
+  },
 }));

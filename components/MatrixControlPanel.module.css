@@ -1,18 +1,19 @@
 /* Design Ref: matrix-control §3.6.2 — host-only panel under the operation
- * options. Grid is 60px label + 8 fluid cells inside the 640px RightPanel. */
+ * options. Grid is 60px label + 8 fluid cells inside the 640px RightPanel.
+ * ui-polish §6.3 — panel now hosts SectionHeader full-bleed at top; collapsible
+ * body wrapper carries the inner 16px padding + 10px child gap. */
 .panel {
   display: flex;
   flex-direction: column;
-  padding: 12px 16px 16px;
+  padding: 12px 0 16px;
   border-top: 1px solid #2a2f45;
-  gap: 10px;
 }
 
-.heading {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #eee;
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px;
+  gap: 10px;
 }
 
 .header {
@@ -20,6 +21,11 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* ui-polish §8.2 — "프리셋 +" floats to the right edge of the header row. */
+.btnPreset {
+  margin-left: auto;
 }
 
 .field {

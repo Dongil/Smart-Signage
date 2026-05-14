@@ -1,6 +1,6 @@
 {
   "name": "signage-app",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "디지털 사이니지 앱 - Electron + Next.js",
   "main": "dist/electron/main.js",
   "author": "Signage Team",

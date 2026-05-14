@@ -1,0 +1,111 @@
+/* Design Ref: ui-polish §8.3 — horizontal preset strip above matrix grid. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.bar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.bar::-webkit-scrollbar-thumb {
+  background: #2a2f45;
+  border-radius: 3px;
+}
+
+.btn {
+  flex: 0 0 auto;
+  max-width: 120px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #ddd;
+  background: #16213e;
+  border: 1px solid #2a4a7f;
+  border-radius: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 100ms ease;
+}
+
+.btn:hover {
+  background: #1a5276;
+  border-color: #4a9eff;
+}
+
+.btn:active {
+  background: #0f3460;
+}
+
+/* ui-polish §6.4 fix — in-app delete confirm (replaces window.confirm). */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.confirmCard {
+  width: 320px;
+  max-width: 90vw;
+  padding: 18px 18px 14px;
+  background: #14182a;
+  border: 1px solid #2a2f45;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.confirmText {
+  margin: 0;
+  font-size: 13px;
+  color: #ddd;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmCancel,
+.confirmOk {
+  padding: 6px 16px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid;
+}
+
+.confirmCancel {
+  background: transparent;
+  border-color: #333;
+  color: #aaa;
+}
+
+.confirmCancel:hover {
+  background: #16213e;
+  color: #ddd;
+}
+
+.confirmOk {
+  background: #5b1f1f;
+  border-color: #5b1f1f;
+  color: #fff;
+}
+
+.confirmOk:hover {
+  background: #7a2a2a;
+}

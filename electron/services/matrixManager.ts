@@ -4,6 +4,7 @@
 // forwards every state/log change to the editor renderer over IPC.
 
 import { ipcMain, BrowserWindow } from 'electron';
+import { randomUUID } from 'crypto';
 import { Pn8080MatrixService } from './Pn8080MatrixService';
 import {
   getSetting,
@@ -12,9 +13,12 @@ import {
 import { getLogger } from '../logger';
 import type {
   MatrixAliases,
+  MatrixApplyPresetResult,
   MatrixFullState,
   MatrixIpcResult,
   MatrixLogEntry,
+  MatrixPreset,
+  MatrixPresetRoute,
   MatrixSnapshot,
 } from '../../types/matrix';
 
@@ -22,7 +26,10 @@ const KEY_HOST = 'matrix.host';
 const KEY_PORT = 'matrix.port';
 const KEY_AUTO = 'matrix.autoConnect';
 const KEY_ALIASES = 'matrix.aliases';
+const KEY_PRESETS = 'matrix.presets';
 const MAX_ALIAS_LEN = 10;
+const MAX_PRESET_NAME = 20;
+const MAX_PRESETS = 20;
 
 const DEFAULT_ALIASES: MatrixAliases = {
   input: ['1', '2', '3', '4', '5', '6', '7', '8'],
@@ -181,6 +188,99 @@ function registerIpc(): void {
       return { ok: false, error: describeError(e) };
     }
   });
+
+  // ui-polish §5.1 — Preset CRUD + apply.
+  ipcMain.handle('matrix:add-preset', (_e, name: string, outputs: number[]): MatrixIpcResult => {
+    try {
+      if (!service) return { ok: false, error: 'service-not-initialized' };
+      const cleanName = typeof name === 'string' ? name.trim().slice(0, MAX_PRESET_NAME) : '';
+      if (!cleanName) return { ok: false, error: 'name-required' };
+      if (!Array.isArray(outputs) || outputs.length === 0) {
+        return { ok: false, error: 'outputs-required' };
+      }
+      if (service.getState().state !== 'connected') {
+        // Plan FR-9 interpretation: presets only meaningful when connected,
+        // since "current routing" snapshot requires live state.
+        return { ok: false, error: 'not-connected' };
+      }
+      const presets = readPresets();
+      if (presets.length >= MAX_PRESETS) return { ok: false, error: 'limit-reached' };
+
+      const routes = service.getState().routes;
+      const snapshot: MatrixPresetRoute[] = outputs
+        .filter((o) => Number.isInteger(o) && o >= 1 && o <= 8)
+        .map((o) => ({ output: o, input: routes[o] ?? 0 }))
+        .filter((r) => r.input >= 1 && r.input <= 8);
+
+      if (snapshot.length === 0) return { ok: false, error: 'no-active-routes' };
+
+      const preset: MatrixPreset = {
+        id: randomUUID(),
+        name: cleanName,
+        routes: snapshot,
+        createdAt: Date.now(),
+      };
+      presets.push(preset);
+      setSetting(KEY_PRESETS, presets);
+      safeLog(`preset added: "${cleanName}" (${snapshot.length} routes)`);
+      broadcastState();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: describeError(e) };
+    }
+  });
+
+  ipcMain.handle('matrix:delete-preset', (_e, id: string): MatrixIpcResult => {
+    try {
+      if (typeof id !== 'string' || !id) return { ok: false, error: 'id-required' };
+      const before = readPresets();
+      const after = before.filter((p) => p.id !== id);
+      if (after.length === before.length) {
+        // Not found is not an error — UI may race; still re-broadcast for safety.
+        broadcastState();
+        return { ok: true };
+      }
+      setSetting(KEY_PRESETS, after);
+      safeLog(`preset deleted: ${id}`);
+      broadcastState();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: describeError(e) };
+    }
+  });
+
+  ipcMain.handle('matrix:apply-preset', async (_e, id: string): Promise<MatrixApplyPresetResult> => {
+    if (!service) {
+      return { ok: false, appliedCount: 0, failedRoutes: [], error: 'service-not-initialized' };
+    }
+    if (typeof id !== 'string' || !id) {
+      return { ok: false, appliedCount: 0, failedRoutes: [], error: 'id-required' };
+    }
+    const preset = readPresets().find((p) => p.id === id);
+    if (!preset) {
+      return { ok: false, appliedCount: 0, failedRoutes: [], error: 'preset-not-found' };
+    }
+    if (service.getState().state !== 'connected') {
+      return { ok: false, appliedCount: 0, failedRoutes: [], error: 'not-connected' };
+    }
+
+    // Plan NFR-3 — best-effort: failure on one route does not stop the rest.
+    // Each route() call enters Pn8080MatrixService's single-flight queue, so
+    // concurrent user clicks naturally serialize behind the preset's routes.
+    safeLog(`preset apply start: "${preset.name}" (${preset.routes.length} routes)`);
+    let applied = 0;
+    const failed: MatrixApplyPresetResult['failedRoutes'] = [];
+    for (const r of preset.routes) {
+      try {
+        await service.route(r.input, r.output);
+        applied++;
+      } catch (e) {
+        failed.push({ route: r, error: describeError(e) });
+      }
+    }
+    safeLog(`preset apply done: "${preset.name}" applied=${applied} failed=${failed.length}`);
+    return { ok: true, appliedCount: applied, failedRoutes: failed };
+  });
 }
 
 // --------------- Helpers ---------------
@@ -200,7 +300,45 @@ function toFullState(snap: MatrixSnapshot): MatrixFullState {
     ...snap,
     aliases: readAliases(),
     autoConnect: readBool(KEY_AUTO),
+    presets: readPresets(),
   };
+}
+
+function broadcastState(): void {
+  const snap = service ? service.getState() : {
+    state: 'disconnected' as const,
+    host: readString(KEY_HOST) ?? '',
+    port: readNumber(KEY_PORT) ?? Pn8080MatrixService.DefaultPort,
+    routes: {},
+  };
+  safeSend('matrix:state', toFullState(snap));
+}
+
+function readPresets(): MatrixPreset[] {
+  const v = getSetting<unknown>(KEY_PRESETS);
+  if (!Array.isArray(v)) return [];
+  const out: MatrixPreset[] = [];
+  for (const item of v) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as Record<string, unknown>;
+    if (typeof obj.id !== 'string' || !obj.id) continue;
+    if (typeof obj.name !== 'string' || !obj.name) continue;
+    if (!Array.isArray(obj.routes)) continue;
+    const routes: MatrixPresetRoute[] = [];
+    for (const r of obj.routes) {
+      if (!r || typeof r !== 'object') continue;
+      const ro = r as Record<string, unknown>;
+      const input = typeof ro.input === 'number' ? ro.input : Number(ro.input);
+      const output = typeof ro.output === 'number' ? ro.output : Number(ro.output);
+      if (!Number.isInteger(input) || input < 1 || input > 8) continue;
+      if (!Number.isInteger(output) || output < 1 || output > 8) continue;
+      routes.push({ input, output });
+    }
+    if (routes.length === 0) continue;
+    const createdAt = typeof obj.createdAt === 'number' ? obj.createdAt : Date.now();
+    out.push({ id: obj.id, name: obj.name, routes, createdAt });
+  }
+  return out;
 }
 
 function readString(key: string): string {

@@ -41,6 +41,10 @@ const INVOKE_CHANNELS = [
   'matrix:set-alias',
   'matrix:set-host',
   'matrix:set-auto-connect',
+  // v1.6 ui-polish — preset CRUD + apply
+  'matrix:add-preset',
+  'matrix:delete-preset',
+  'matrix:apply-preset',
 ];
 
 const ON_CHANNELS = [

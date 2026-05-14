@@ -34,6 +34,8 @@ export interface MatrixSnapshot {
 export interface MatrixFullState extends MatrixSnapshot {
   aliases: MatrixAliases;
   autoConnect: boolean;
+  /** ui-polish §4.1 — persisted preset list, snapshot of routing combos. */
+  presets: MatrixPreset[];
 }
 
 export interface MatrixIpcOk {
@@ -46,3 +48,24 @@ export interface MatrixIpcErr {
 }
 
 export type MatrixIpcResult = MatrixIpcOk | MatrixIpcErr;
+
+// ui-polish §4.1 — Preset model. routes is a snapshot of current input→output
+// mapping at save-time, replayed sequentially on apply.
+export interface MatrixPresetRoute {
+  input: number;   // 1..8
+  output: number;  // 1..8
+}
+
+export interface MatrixPreset {
+  id: string;
+  name: string;
+  routes: MatrixPresetRoute[];
+  createdAt: number;
+}
+
+export interface MatrixApplyPresetResult {
+  ok: boolean;
+  appliedCount: number;
+  failedRoutes: Array<{ route: MatrixPresetRoute; error: string }>;
+  error?: string;
+}

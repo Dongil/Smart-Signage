@@ -1,0 +1,33 @@
+/* Design Ref: ui-polish §8.1 — section toggle header. */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  padding: 0 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: #eee;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #eee;
+}
+
+.chevron {
+  font-size: 10px;
+  color: #aaa;
+  margin-left: 8px;
+  user-select: none;
+}
