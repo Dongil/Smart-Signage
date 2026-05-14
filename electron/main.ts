@@ -17,6 +17,8 @@ import { seedDefaultSettings } from './db/seed';
 import { ensureHostDevice } from './db/deviceBootstrap';
 import { startServer, type RunningServer } from './server';
 import { initLogger, getLogger, openLogsFolder, showFatalDialog, logFilePath } from './logger';
+// Design Ref: matrix-control §3.9 — main lifecycle for PN-8080 matrix control
+import { initMatrix, disposeMatrix } from './services/matrixManager';
 
 const HTTP_PORT = 7321;
 
@@ -149,6 +151,14 @@ function createWindows() {
     },
   });
   log.info('editorWin created');
+
+  // matrix-control §3.9 — wire singleton matrix manager + IPC handlers.
+  try {
+    initMatrix(editorWin);
+    log.info('matrix manager initialized');
+  } catch (e) {
+    log.warn('matrix manager init failed:', e);
+  }
 
   editorWin.webContents.on('did-fail-load', (_e, code, desc, url) => {
     log.error('editor did-fail-load:', code, desc, 'url:', url);
@@ -388,6 +398,12 @@ app.whenReady().then(async () => {
 app.on('before-quit', async () => {
   log.info('before-quit');
   isQuitting = true;
+  try {
+    await disposeMatrix();
+    log.info('matrix disposed');
+  } catch (e) {
+    log.warn('matrix dispose error:', e);
+  }
   if (runningServer) {
     try {
       await runningServer.close();

@@ -2,6 +2,7 @@
 // v1.1 simplified signage flow: signage-show is invoke (returns result),
 // signage-hide is fire-and-forget. The legacy "show-on-signage" channel
 // is kept as an alias for backwards compatibility with cached pages.
+// v1.5 matrix-control §3.3.1 — adds matrix:* channels (invoke + push).
 
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -30,9 +31,25 @@ const INVOKE_CHANNELS = [
   'log',
   'open-logs-folder',
   'get-log-path',
+  // v1.5 matrix-control
+  'matrix:connect',
+  'matrix:disconnect',
+  'matrix:route',
+  'matrix:route-all',
+  'matrix:refresh',
+  'matrix:get-state',
+  'matrix:set-alias',
+  'matrix:set-host',
+  'matrix:set-auto-connect',
 ];
 
-const ON_CHANNELS = ['render-slide', 'signage-visibility'];
+const ON_CHANNELS = [
+  'render-slide',
+  'signage-visibility',
+  // v1.5 matrix-control
+  'matrix:state',
+  'matrix:log',
+];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   send: (channel: string, data?: unknown) => {
@@ -40,9 +57,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.send(channel, data);
     }
   },
-  invoke: (channel: string, data?: unknown) => {
+  // v1.5 matrix-control §3.3.1 — support variadic args (some channels pass
+  // multiple parameters, e.g. matrix:route(input, output)).
+  invoke: (channel: string, ...args: unknown[]) => {
     if (INVOKE_CHANNELS.includes(channel)) {
-      return ipcRenderer.invoke(channel, data);
+      return ipcRenderer.invoke(channel, ...args);
     }
     return Promise.reject(new Error(`Channel ${channel} not allowed`));
   },

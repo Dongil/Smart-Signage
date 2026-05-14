@@ -1,0 +1,222 @@
+/* Design Ref: matrix-control §3.6.2 — host-only panel under the operation
+ * options. Grid is 60px label + 8 fluid cells inside the 640px RightPanel. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 16px;
+  border-top: 1px solid #2a2f45;
+  gap: 10px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #eee;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.textInput,
+.portInput {
+  background: #16213e;
+  color: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.textInput {
+  width: 130px;
+}
+
+.portInput {
+  width: 64px;
+}
+
+.textInput:disabled,
+.portInput:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn {
+  background: #16213e;
+  color: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: #1a5276;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  background: #0f3460;
+  border-color: #0f3460;
+  color: #fff;
+}
+
+.btnDanger {
+  background: #5b1f1f;
+  border-color: #5b1f1f;
+  color: #fff;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #7a2a2a;
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #888;
+  flex-shrink: 0;
+}
+
+.dot_connected {
+  background: #2fa861;
+  box-shadow: 0 0 6px rgba(47, 168, 97, 0.6);
+}
+
+.dot_connecting,
+.dot_reconnecting {
+  background: #d3a93c;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.dot_disconnected {
+  background: #888;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.statusLabel {
+  font-size: 12px;
+  color: #ccc;
+  font-weight: 500;
+}
+
+/* 4 rows × (label + 8 cells). The label is fixed at 60px; cells share the rest. */
+.grid {
+  display: grid;
+  grid-template-columns: 60px repeat(8, 1fr);
+  gap: 4px;
+}
+
+.rowLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cdd;
+  background: #1f253a;
+  border-radius: 3px;
+}
+
+.numberCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  font-size: 12px;
+  color: #aaa;
+  background: #14182a;
+  border: 1px solid #2a2f45;
+  border-radius: 3px;
+}
+
+.connectCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  font-size: 12px;
+  color: #aacfff;
+  background: #0f1a30;
+  border: 1px solid #2a2f45;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.autoConnect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.autoConnect input {
+  accent-color: #4a9eff;
+}
+
+.hint {
+  font-size: 11px;
+  color: #ffb84d;
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #ffb0b0;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  border-radius: 4px;
+}
+
+.errorClose {
+  background: none;
+  border: none;
+  color: #ffb0b0;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.errorClose:hover {
+  color: #fff;
+}

@@ -18,6 +18,14 @@ const DEFAULT_SETTINGS: Array<[string, unknown]> = [
   // Design Ref: ui-redesign §3.1.5 — operational option defaults
   ['slide.padding', 50],
   ['slide.transitionSec', 0.5],
+  // Design Ref: matrix-control §3.4 — PN-8080 control defaults
+  ['matrix.host', '192.168.10.199'],
+  ['matrix.port', 8000],
+  ['matrix.autoConnect', false],
+  ['matrix.aliases', {
+    input: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    output: ['1', '2', '3', '4', '5', '6', '7', '8'],
+  }],
 ];
 
 /**
