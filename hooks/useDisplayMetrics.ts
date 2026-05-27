@@ -2,6 +2,11 @@
 // single hook to read canvas dimensions. Backed by the generic options
 // registry. The effective canvas width depends on the signage mode:
 // surround → full 5760×h, individual → 1920×h (tiled ×3 on signage output).
+//
+// Design Ref: monitor-target §3.6 — tile=1 when targetId set.
+// Individual mode + user-selected target → render exactly 1 tile (the signage
+// window will be placed on a 1920×1080 physical monitor, so tiling ×3 would
+// just squeeze 3 copies into 1920 — defeating the purpose of the selection).
 
 import { useOption } from './useOption';
 
@@ -26,10 +31,13 @@ const INDIVIDUAL_TILE_COUNT = 3;
 export function useDisplayMetrics(): DisplayMetrics {
   const res = useOption<{ w: number; h: number }>('signage.resolution');
   const mode = useOption<SignageMode>('signage.mode');
+  const targetId = useOption<number | null>('signage.targetDisplayId');
 
   const isIndividual = mode === 'individual';
+  const hasTarget = targetId !== null && targetId !== undefined;
   const w = isIndividual ? INDIVIDUAL_TILE_WIDTH : res.w;
-  const tileCount = isIndividual ? INDIVIDUAL_TILE_COUNT : 1;
+  // Plan SC-2: individual + target → 1 tile native; individual auto → keep ×3 legacy.
+  const tileCount = isIndividual ? (hasTarget ? 1 : INDIVIDUAL_TILE_COUNT) : 1;
 
   return {
     w,

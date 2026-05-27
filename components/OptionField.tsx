@@ -1,12 +1,19 @@
 // Design Ref: ui-redesign §3.2.1 — schema-driven input renderer.
 // Dispatches by schema.type to a number/select/boolean field. New types
 // can be added here without touching the panel.
+//
+// Design Ref: monitor-target §3.5 — provider-driven options + showWhen gate.
+// A select schema may declare `optionsProvider: 'displays'` to have its
+// option list composed at runtime from useDisplays(). A schema may also
+// declare `showWhen: { key, equals }` to hide the field unless a sibling
+// option matches — used to hide "출력 모니터" outside Individual mode.
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useSignageStore } from '@/store/useSignageStore';
 import { useOption } from '@/hooks/useOption';
+import { useDisplays, type DisplayInfo } from '@/hooks/useDisplays';
 import type { OptionSchema, NumberOptionSchema, SelectOptionSchema } from '@/lib/options/types';
 import styles from './OptionField.module.css';
 
@@ -18,6 +25,13 @@ export default function OptionField({ schema }: Props) {
   const setOption = useSignageStore((s) => s.setOption);
   const value = useOption<unknown>(schema.key);
   const [busy, setBusy] = useState(false);
+  // Design Ref: monitor-target §3.5 — read gate value reactively so the field
+  // appears/disappears when its sibling changes (e.g. mode surround↔individual).
+  const gate = schema.type === 'select' ? schema.showWhen : undefined;
+  const gateValue = useOption<unknown>(gate?.key ?? schema.key);
+  if (gate && JSON.stringify(gateValue) !== JSON.stringify(gate.equals)) {
+    return null;
+  }
 
   const onChange = async (next: unknown) => {
     if (busy) return;
@@ -55,6 +69,9 @@ function renderInput(
     case 'number':
       return <NumberInput id={id} schema={schema} value={value as number} disabled={busy} onChange={change} />;
     case 'select':
+      if (schema.optionsProvider === 'displays') {
+        return <DisplaySelectInput id={id} schema={schema as SelectOptionSchema<unknown>} value={value} disabled={busy} onChange={change} />;
+      }
       return <SelectInput id={id} schema={schema as SelectOptionSchema<unknown>} value={value} disabled={busy} onChange={change} />;
     case 'boolean':
       return (
@@ -173,6 +190,55 @@ function SelectInput({
       onChange={(e) => onChange(schema.options[Number(e.target.value)].value)}
     >
       {schema.options.map((o, i) => (
+        <option key={i} value={i}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// Design Ref: monitor-target §3.5 — provider-driven options.
+// Base options (schema.options) typically carry only the "자동" sentinel;
+// runtime entries for each non-primary display are appended.
+function formatDisplayLabel(d: DisplayInfo): string {
+  const label = d.label && d.label.length > 0 ? d.label : `Display ${d.id}`;
+  return `${label} (${d.bounds.width}×${d.bounds.height})`;
+}
+
+function DisplaySelectInput({
+  id,
+  schema,
+  value,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  schema: SelectOptionSchema<unknown>;
+  value: unknown;
+  disabled: boolean;
+  onChange: (next: unknown) => void;
+}) {
+  const { displays, loading } = useDisplays();
+  const composed = [
+    ...schema.options,
+    ...displays
+      .filter((d) => !d.isPrimary)
+      .map((d) => ({ label: formatDisplayLabel(d), value: d.id as unknown })),
+  ];
+  const selectedIdx = Math.max(
+    0,
+    composed.findIndex((o) => JSON.stringify(o.value) === JSON.stringify(value))
+  );
+  return (
+    <select
+      id={id}
+      className={styles.select}
+      value={selectedIdx}
+      disabled={disabled || loading}
+      onChange={(e) => onChange(composed[Number(e.target.value)].value)}
+    >
+      {composed.map((o, i) => (
         <option key={i} value={i}>
           {o.label}
         </option>

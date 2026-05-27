@@ -19,6 +19,10 @@ import { startServer, type RunningServer } from './server';
 import { initLogger, getLogger, openLogsFolder, showFatalDialog, logFilePath } from './logger';
 // Design Ref: matrix-control §3.9 — main lifecycle for PN-8080 matrix control
 import { initMatrix, disposeMatrix } from './services/matrixManager';
+// Design Ref: monitor-target §3.2 — read user-selected target display + react
+// to settings.changed events from the in-process eventBus.
+import { getSetting } from './server/services/settingsService';
+import { eventBus } from './server/services/eventBus';
 
 const HTTP_PORT = 7321;
 
@@ -62,14 +66,55 @@ function getSecondaryDisplay(): Display | null {
   return displays.find((d) => d.id !== primary.id) ?? null;
 }
 
+// Design Ref: monitor-target §3.2 — mode+targetId branching with stale fallback.
+// Surround mode (or null target) → first non-primary display (legacy behavior).
+// Individual mode + valid target → that display.
+// Individual mode + stale/invalid target → fallback to first secondary + log.warn.
+function getTargetDisplay(): Display | null {
+  const mode = getSetting<string>('signage.mode') ?? 'surround';
+  if (mode !== 'individual') return getSecondaryDisplay();
+
+  const targetId = getSetting<number | null>('signage.targetDisplayId');
+  if (targetId === null || targetId === undefined) return getSecondaryDisplay();
+
+  const displays = screen.getAllDisplays();
+  const primary = screen.getPrimaryDisplay();
+  const match = displays.find((d) => d.id === targetId);
+  if (!match || match.id === primary.id) {
+    log.warn(
+      'targetDisplayId stale or primary, falling back to first secondary. wanted id:',
+      targetId
+    );
+    return getSecondaryDisplay();
+  }
+  return match;
+}
+
 function placeSignageOnSecondary(): boolean {
   if (!signageWin || signageWin.isDestroyed()) return false;
-  const secondary = getSecondaryDisplay();
-  if (!secondary) return false;
-  const { x, y, width, height } = secondary.bounds;
+  const target = getTargetDisplay();
+  if (!target) return false;
+  const { x, y, width, height } = target.bounds;
   signageWin.setBounds({ x, y, width, height });
   signageWin.setFullScreen(true);
   return true;
+}
+
+// Design Ref: monitor-target §3.2 — idempotent placement trigger. Safe to call
+// when signage is hidden (no-op until next show). Used by screen events and
+// settings.changed eventBus listener.
+function applyPlacement(): void {
+  if (!signageWin || signageWin.isDestroyed()) return;
+  if (!signageWin.isVisible()) return;
+  const ok = placeSignageOnSecondary();
+  if (!ok) log.warn('applyPlacement: no target display available');
+}
+
+// Design Ref: monitor-target §3.3 — broadcast display list changes to editor
+// so useDisplays() hook refreshes the combo.
+function broadcastDisplays(): void {
+  if (!editorWin || editorWin.isDestroyed()) return;
+  editorWin.webContents.send('displays-changed');
 }
 
 function buildAppMenu(): void {
@@ -382,6 +427,26 @@ app.whenReady().then(async () => {
 
     buildAppMenu();
     createWindows();
+
+    // Design Ref: monitor-target §3.2 — hot-plug reactive placement.
+    // OS display add/remove/metrics-change → notify editor + re-apply placement.
+    const onDisplayChange = (kind: string) => () => {
+      log.info('display event:', kind, 'count:', screen.getAllDisplays().length);
+      broadcastDisplays();
+      applyPlacement();
+    };
+    screen.on('display-added', onDisplayChange('added'));
+    screen.on('display-removed', onDisplayChange('removed'));
+    screen.on('display-metrics-changed', onDisplayChange('metrics-changed'));
+
+    // settings.changed → re-apply placement when mode/target switches.
+    eventBus.on((event) => {
+      if (event.type !== 'settings.changed') return;
+      if (event.key !== 'signage.mode' && event.key !== 'signage.targetDisplayId') return;
+      log.info('settings.changed → applyPlacement, key:', event.key);
+      applyPlacement();
+    });
+
     log.info('boot complete');
   } catch (err) {
     log.error('boot failed:', err);

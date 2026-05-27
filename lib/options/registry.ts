@@ -33,6 +33,21 @@ export const OPTION_REGISTRY: OptionSchema[] = [
     ],
   },
   {
+    // Design Ref: monitor-target §2.3 — targetDisplayId entry.
+    // null = legacy auto-pick first secondary. number = use specific display id.
+    // Surround mode ignores this value (showWhen gate hides it).
+    key: 'signage.targetDisplayId',
+    type: 'select',
+    label: '출력 모니터',
+    hint: '개별모드일 때 출력할 모니터 지정 (자동 = 첫 확장 모니터)',
+    default: null,
+    options: [
+      { label: '자동 — 첫 확장 모니터', value: null },
+    ],
+    optionsProvider: 'displays',
+    showWhen: { key: 'signage.mode', equals: 'individual' },
+  },
+  {
     key: 'slide.padding',
     type: 'number',
     label: '슬라이드 상하 여백',

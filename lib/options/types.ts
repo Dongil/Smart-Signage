@@ -26,6 +26,11 @@ export interface SelectOptionSchema<T = unknown> extends BaseSchema {
   type: 'select';
   default: T;
   options: Array<{ label: string; value: T }>;
+  // Design Ref: monitor-target §2.2 — dynamic options & showWhen gate.
+  // optionsProvider: when set, panel composes runtime entries on top of `options`.
+  // showWhen: when set, field renders only if useOption(gate.key) deep-equals `equals`.
+  optionsProvider?: 'displays';
+  showWhen?: { key: string; equals: unknown };
 }
 
 export interface BooleanOptionSchema extends BaseSchema {

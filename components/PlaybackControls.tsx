@@ -1,12 +1,19 @@
 // Design Ref: §2.M5, Plan FR-04 — Slideshow control bar.
 // ui-redesign §3.4 — always rendered; visually disabled when signage is off.
 // All actions go through the API so the signage window stays in sync via SSE.
+//
+// signage-mode §3.6.3 — counter and currentSlide must be scoped to the active
+// mode (matching Preview/SignageRenderer), since the server's currentIndex is
+// indexed into the mode-filtered list. Using all slides was a leftover bug
+// that displayed surround+individual totals as one count.
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePlaybackStore } from '@/store/usePlaybackStore';
 import { useSignageStore } from '@/store/useSignageStore';
+import { useOption } from '@/hooks/useOption';
+import type { SignageMode } from '@/types/slide';
 import styles from './PlaybackControls.module.css';
 
 const DURATION_MIN = 1;
@@ -19,9 +26,14 @@ export default function PlaybackControls() {
   const duration = usePlaybackStore((s) => s.duration);
   const signageActive = usePlaybackStore((s) => s.signageActive);
   const dispatch = usePlaybackStore((s) => s.dispatch);
+  const mode = useOption<SignageMode>('signage.mode');
 
-  const total = slides.length;
-  const currentSlide = slides[currentIndex];
+  const visibleSlides = useMemo(
+    () => slides.filter((s) => s.mode === mode),
+    [slides, mode]
+  );
+  const total = visibleSlides.length;
+  const currentSlide = visibleSlides[currentIndex];
   // Local mirror so the slider feels snappy while the user is dragging.
   const [draftDuration, setDraftDuration] = useState<number>(currentSlide?.duration ?? duration);
 

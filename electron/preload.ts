@@ -53,6 +53,8 @@ const ON_CHANNELS = [
   // v1.5 matrix-control
   'matrix:state',
   'matrix:log',
+  // v1.7 monitor-target — broadcast on screen.add/remove/metrics-changed
+  'displays-changed',
 ];
 
 contextBridge.exposeInMainWorld('electronAPI', {
