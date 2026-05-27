@@ -177,12 +177,12 @@
 <!-- ==================== COVER ==================== -->
 <section class="cover">
   <h1>Smart Signage</h1>
-  <div class="version">v1.6.0</div>
+  <div class="version">v1.7.0</div>
   <h2>디지털 사이니지 시스템 상세 매뉴얼</h2>
   <div class="meta">
     Electron 30 · Next.js 14 · SQLite · NVIDIA Surround 5760×1080/1200<br>
     Editor + Signage + PN-8080 8×8 HDMI Matrix Control<br><br>
-    문서 작성일 · 2026-05-13<br>
+    문서 작성일 · 2026-05-27 (v1.7.0)<br>
     플랫폼 · Windows 11 Pro
   </div>
 </section>
@@ -388,6 +388,32 @@
 <h2>5.2 모드 (signage.mode)</h2>
 <p>운영 옵션 패널에서 Surround / Individual 토글. 슬라이드 자동 필터링 (§4.4 참고).</p>
 
+<h2>5.2.1 출력 모니터 지정 <span class="badge">v1.7.0</span></h2>
+<p>
+  NVIDIA Surround가 운영 중 OS/드라이버 사유로 해제되면 3개 모니터가 따로 인식되며,
+  이전(≤v1.6) 자동 선택은 그중 한 장에 3타일을 압축 표시해 사용 불능 상태가 됐다.
+  v1.7부터 Individual 모드에서 출력할 모니터를 운영자가 직접 지정할 수 있다.
+</p>
+<ul>
+  <li>운영 옵션 → <b>출력 모니터</b> 콤보 (개별모드에서만 표시).</li>
+  <li><b>"자동 — 첫 확장 모니터"</b> 또는 감지된 확장 모니터 중 선택.</li>
+  <li>지정한 모니터에 1슬라이드가 native 1920×1080으로 단독 표시 (타일링 OFF).</li>
+  <li>저장된 모니터가 다음 부팅에 없어지면 첫 확장 모니터로 자동 폴백 + main.log 경고.</li>
+  <li>디스플레이 연결/해제 시 콤보 목록이 자동 갱신되며 placement도 즉시 재적용.</li>
+</ul>
+<table>
+  <tr><th style="width:35%">상황</th><th>v1.7 동작</th></tr>
+  <tr><td>Surround 활성, 개별모드</td><td>5760×1080 가상 모니터에 ×3 타일 (v1.6과 동일)</td></tr>
+  <tr><td>Surround 해제, 개별 + 모니터 지정</td><td>지정한 1920×1080 모니터에 1슬라이드 단독 표시</td></tr>
+  <tr><td>Surround 해제, 개별 + "자동"</td><td>첫 확장 모니터에 ×3 타일 (압축 — v1.6 동작 유지, 호환 위해)</td></tr>
+  <tr><td>서라운드 모드</td><td>출력 모니터 콤보 비표시 — 기존 자동 선택 유지</td></tr>
+</table>
+<div class="tip">
+  <b>v1.7 Preview 변경</b>: Individual 모드에서 우측 패널 Preview가 항상 1920×1080 비율로
+  표시됩니다 (이전엔 5760+3분할선이 Surround와 동일하게 보여 혼동 유발). PlaybackControls의
+  <code>1/N</code> 카운터도 현재 모드의 슬라이드 수만 집계합니다.
+</div>
+
 <h2>5.3 페이지 전환 fade (slide.transitionSec)</h2>
 <p>
   슬라이드 간 페이드 시간을 초 단위로 지정합니다 (0~5초, 0.1초 단위).
@@ -521,6 +547,11 @@
     <td><code>signage.mode</code></td>
     <td>출력 모드 (v1.4.0+)</td>
     <td>Surround / Individual</td>
+  </tr>
+  <tr>
+    <td><code>signage.targetDisplayId</code></td>
+    <td>출력 모니터 지정 (v1.7.0+, 개별모드 전용)</td>
+    <td>null (자동) 또는 디스플레이 ID</td>
   </tr>
   <tr>
     <td><code>slide.transitionSec</code></td>
@@ -707,7 +738,8 @@ r av out 0!            → 전체 라우팅 조회 (응답: "input X -> output Y
   <tr><td>1.3.0</td><td>—</td><td>UI Redesign (8-item 우측 패널), schema OPTION_REGISTRY, true crossfade, 슬라이더 드래그 fix</td></tr>
   <tr><td>1.4.0</td><td>—</td><td>signage mode 추가 (Surround / Individual ×3 타일)</td></tr>
   <tr><td>1.5.0</td><td>—</td><td>PN-8080 HDMI Matrix 제어 패널 (TCP/8000, Auto-Take, AutoReconnect)</td></tr>
-  <tr><td><b>1.6.0</b></td><td><b>2026-05-13</b></td><td><b>운영 옵션/매트릭스 접기/펴기 + 매트릭스 프리셋 CRUD/Apply + in-app confirm</b></td></tr>
+  <tr><td>1.6.0</td><td>2026-05-13</td><td>운영 옵션/매트릭스 접기/펴기 + 매트릭스 프리셋 CRUD/Apply + in-app confirm</td></tr>
+  <tr><td><b>1.7.0</b></td><td><b>2026-05-27</b></td><td><b>Individual 모드 출력 모니터 지정 (Surround-off 복원력) + Preview·Counter mode-scoped</b></td></tr>
 </table>
 
 <p style="margin-top:18pt; font-size:9pt; color:#777; text-align:center;">
